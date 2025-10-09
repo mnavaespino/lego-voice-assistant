@@ -48,9 +48,22 @@ if audio_file is not None:
         }]
 
         messages = [
-            {"role": "system", "content": "Eres un asistente LEGO en español. Usa 'buscar_lego' si necesitas datos reales."},
-            {"role": "user", "content": pregunta}
-        ]
+        {
+            "role": "system",
+            "content": (
+                "Eres un asistente especializado en colecciones LEGO en español. "
+                "Tu base de conocimiento principal son los datos reales del usuario, accesibles mediante la función 'buscar_lego'. "
+                "Si el usuario hace una pregunta sobre cualquier set, minifigura o detalle de su colección (nombre, caja, tema, condición, año, tienda, etc.), "
+                "usa siempre 'buscar_lego' para obtener la información precisa. "
+                "Nunca inventes datos ni hagas suposiciones sin consultar esa fuente. "
+                "Después de consultar, resume los resultados de forma clara y natural, como si fueras un coleccionista experto hablando con otro."
+            )
+        },
+        {
+            "role": "user",
+            "content": pregunta
+        }
+    ]
 
         first = client.chat.completions.create(
             model="gpt-4o-mini",

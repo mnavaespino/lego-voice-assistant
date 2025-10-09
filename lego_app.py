@@ -19,7 +19,7 @@ def buscar_lego(q):
 
 # --- configuraciones ---
 st.set_page_config(page_title="LEGO Assistant", page_icon="🧱")
-st.title("🧱 Asistente LEGO por Voz")
+st.title("🧱 Mi Asistente LEGO por Voz")
 
 # --- grabar audio (usa el componente de Streamlit) ---
 audio_file = st.audio_input("Habla para buscar un set o minifigura")

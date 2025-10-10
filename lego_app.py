@@ -10,42 +10,65 @@ st.set_page_config(page_title="Asistente LEGO IA", page_icon="🧱", layout="cen
 st.title("🧱 Asistente LEGO con IA + Firestore (vía AWS Lambda)")
 st.caption("Habla o escribe tu pregunta. Compatible con dictado nativo en iPhone 🗣️")
 
-# 👉 Reemplaza con tu endpoint de Lambda (API Gateway)
+# 👉 Reemplaza con tu endpoint real de Lambda
 LAMBDA_URL = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 
 # ------------------------------------------------------------
-# ESTILOS
+# ESTILOS GLOBALES
 # ------------------------------------------------------------
 st.markdown("""
 <style>
-    .main {
+    .input-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+
+    input[type=text] {
+        width: 90%;
+        font-size: 22px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid #bbb;
+        outline: none;
         text-align: center;
     }
-    input[type=text] {
-        width: 95%;
-        font-size: 18px;
-        padding: 10px;
+
+    input[type=text]:focus {
+        border: 1px solid #ff5555;
+        box-shadow: 0 0 6px rgba(255, 85, 85, 0.4);
+    }
+
+    button {
+        margin-top: 10px;
+        background-color: #ff5555;
+        color: white;
+        border: none;
         border-radius: 8px;
-        border: 1px solid #ccc;
-        outline: none;
+        padding: 10px 22px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #ff3333;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# CAMPO ÚNICO DE ENTRADA (dictado + Enter)
+# INPUT DE TEXTO (compatible con dictado + Enter)
 # ------------------------------------------------------------
-st.markdown("### 🎙️ Habla o escribe tu pregunta:")
-
 components.html(
     """
-    <div style="text-align: center;">
+    <div class="input-container">
         <form onsubmit="enviarPregunta(); return false;">
             <input id="voiceInput"
                    type="text"
                    placeholder="Toca el micrófono del teclado o escribe tu pregunta..."
-                   x-webkit-speech speech
-                   autofocus>
+                   x-webkit-speech speech autofocus />
         </form>
     </div>
     <script>
@@ -56,7 +79,6 @@ components.html(
                 window.parent.postMessage({ type: 'streamlit:setComponentValue', value: pregunta }, '*');
             }
         }
-        // Ejecutar también al presionar Enter directamente
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -65,44 +87,48 @@ components.html(
         });
     </script>
     """,
-    height=80,
+    height=100,
 )
 
 st.info("💡 En iPhone puedes tocar el micrófono del teclado para dictar tu pregunta por voz.")
 
 # ------------------------------------------------------------
-# CAPTURAR VALOR DEL INPUT
+# CAPTURA DEL VALOR DEL INPUT
 # ------------------------------------------------------------
-# Streamlit guarda el valor del componente HTML a través de la sesión
-# Necesitamos leerlo dinámicamente con st.session_state para mantener persistencia
 if "pregunta" not in st.session_state:
     st.session_state["pregunta"] = ""
 
-# Pequeño truco para recibir el valor del postMessage del componente HTML
-pregunta = st.session_state.get("pregunta", "")
+pregunta = st.session_state.get("pregunta", "").strip()
 
 # ------------------------------------------------------------
-# BOTÓN INVISIBLE (por compatibilidad)
+# BOTÓN MANUAL (por compatibilidad)
 # ------------------------------------------------------------
-# Si el usuario presiona Enter o dictado finaliza, se ejecuta el procesamiento
-if pregunta:
-    with st.spinner("Consultando tu colección LEGO... 🧱"):
-        try:
-            payload = {"pregunta": pregunta}
-            response = requests.post(LAMBDA_URL, json=payload, timeout=30)
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    enviar = st.button("Preguntar 🧱")
 
-            if response.status_code == 200:
-                data = response.json()
-                respuesta = data.get("respuesta", "Sin respuesta.")
-                st.success("Respuesta:")
-                st.write(respuesta)
-            else:
-                st.error(f"Error {response.status_code}: {response.text}")
+# Ejecutar tanto con Enter como con botón
+if pregunta or enviar:
+    if not pregunta:
+        st.warning("Por favor, escribe o dicta una pregunta.")
+    else:
+        with st.spinner("Consultando tu colección LEGO... 🧱"):
+            try:
+                payload = {"pregunta": pregunta}
+                response = requests.post(LAMBDA_URL, json=payload, timeout=30)
 
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error de conexión: {str(e)}")
-        except Exception as e:
-            st.error(f"Ocurrió un error inesperado: {str(e)}")
+                if response.status_code == 200:
+                    data = response.json()
+                    respuesta = data.get("respuesta", "Sin respuesta.")
+                    st.success("Respuesta:")
+                    st.write(respuesta)
+                else:
+                    st.error(f"Error {response.status_code}: {response.text}")
+
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error de conexión: {str(e)}")
+            except Exception as e:
+                st.error(f"Ocurrió un error inesperado: {str(e)}")
 
 # ------------------------------------------------------------
 # PIE DE PÁGINA

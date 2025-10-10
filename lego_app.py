@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-import json
+import streamlit.components.v1 as components
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -8,9 +8,9 @@ import json
 st.set_page_config(page_title="Asistente LEGO IA", page_icon="🧱", layout="centered")
 
 st.title("🧱 Asistente LEGO con IA + Firestore (vía AWS Lambda)")
-st.caption("Pregunta libremente sobre tu colección de LEGO — consulta directa a tu base Firestore.")
+st.caption("Consulta tu colección LEGO por voz o texto. Compatible con dictado nativo en iPhone 🗣️")
 
-# 👉 Reemplaza este URL con el endpoint público de tu Lambda (API Gateway)
+# 👉 Reemplaza con tu endpoint de Lambda (API Gateway)
 LAMBDA_URL = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 
 # ------------------------------------------------------------
@@ -24,14 +24,40 @@ st.markdown("""
 - ¿Qué sets tengo guardados en la caja 12?
 """)
 
-pregunta = st.text_input("🗣️ Escribe tu pregunta:", placeholder="Ejemplo: ¿Qué sets de LEGO son entre el año 2020 y 2021?")
+# ------------------------------------------------------------
+# CAMPO DE TEXTO CON DICTADO NATIVO (iPhone / Safari)
+# ------------------------------------------------------------
+st.markdown("### 🎙️ Habla o escribe tu pregunta:")
+
+components.html(
+    """
+    <div style="text-align: center;">
+        <input id="voiceInput" 
+               type="text"
+               placeholder="Toca el micrófono del teclado para dictar tu pregunta..."
+               x-webkit-speech speech
+               style="width: 95%; font-size: 18px; padding: 10px;
+                      border-radius: 8px; border: 1px solid #ccc; outline: none;">
+    </div>
+    """,
+    height=70,
+)
+
+st.info("💡 En iPhone puedes tocar el micrófono del teclado para dictar tu pregunta por voz.")
+
+# ------------------------------------------------------------
+# CAMPO DE ESCRITURA MANUAL OPCIONAL
+# ------------------------------------------------------------
+pregunta_manual = st.text_input("O escríbela manualmente:", placeholder="¿Qué sets de LEGO son entre el año 2020 y 2021?")
 
 # ------------------------------------------------------------
 # ENVÍO DE LA PREGUNTA
 # ------------------------------------------------------------
 if st.button("Preguntar"):
-    if not pregunta.strip():
-        st.warning("Por favor, escribe una pregunta.")
+    pregunta = pregunta_manual.strip()
+
+    if not pregunta:
+        st.warning("Por favor, escribe o dicta una pregunta.")
     else:
         with st.spinner("Consultando tu colección LEGO... 🧱"):
             try:
@@ -55,4 +81,4 @@ if st.button("Preguntar"):
 # PIE DE PÁGINA
 # ------------------------------------------------------------
 st.markdown("---")
-st.caption("Desarrollado por Mike Nava ⚙️  ·  Firestore + OpenAI + AWS Lambda + Streamlit")
+st.caption("Desarrollado por Mike Nava ⚙️ · Firestore + OpenAI + AWS Lambda + Streamlit")

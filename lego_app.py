@@ -11,7 +11,7 @@ st.title("🧱 Asistente LEGO con IA + Firestore (vía AWS Lambda)")
 st.caption("Habla o escribe tu pregunta. Compatible con dictado nativo en iPhone 🗣️")
 
 # 👉 Reemplaza con tu endpoint de Lambda (API Gateway)
-LAMBDA_URL = "https://tu-api-id.execute-api.us-east-1.amazonaws.com/prod/"
+LAMBDA_URL = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 
 # ------------------------------------------------------------
 # ESTILOS

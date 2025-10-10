@@ -6,7 +6,7 @@ import requests
 # ------------------------------------------------------------
 st.set_page_config(page_title="Asistente LEGO IA", page_icon="🧱", layout="centered")
 
-st.title("🧱 Asistente LEGO con IA + Firestore (vía AWS Lambda)")
+st.title("🧱 Buscador en mi catalogo de LEGO")
 st.caption("Consulta tu colección LEGO por voz o texto (funciona con dictado nativo en iPhone 🗣️)")
 
 # 👉 Reemplaza con tu endpoint real de Lambda (API Gateway)

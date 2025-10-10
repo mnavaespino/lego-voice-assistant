@@ -11,7 +11,7 @@ st.title("🧱 Asistente LEGO con IA + Firestore (vía AWS Lambda)")
 st.caption("Pregunta libremente sobre tu colección de LEGO — consulta directa a tu base Firestore.")
 
 # 👉 Reemplaza este URL con el endpoint público de tu Lambda (API Gateway)
-LAMBDA_URL = "https://tu-api-id.execute-api.us-east-1.amazonaws.com/prod/"
+LAMBDA_URL = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 
 # ------------------------------------------------------------
 # INTERFAZ DE USUARIO

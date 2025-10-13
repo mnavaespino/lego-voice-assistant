@@ -63,14 +63,12 @@ with tab1:
 with tab2:
     st.subheader("⚙️ Gestión del catálogo LEGO")
 
-    # Sección 1: Selección de operación
     st.markdown("### 🔧 Tipo de operación")
     operacion = st.selectbox(
         "Selecciona una operación:",
         ["Alta de nuevo set", "Baja de set existente", "Cambio / Edición de set"]
     )
 
-    # Mapeo de texto a acción para el backend
     mapa_acciones = {
         "Alta de nuevo set": "alta",
         "Baja de set existente": "baja",
@@ -78,7 +76,6 @@ with tab2:
     }
     accion = mapa_acciones[operacion]
 
-    # Separador visual
     st.divider()
     st.markdown("### 📋 Datos del set")
 
@@ -88,13 +85,10 @@ with tab2:
     theme = st.selectbox("🏷️ Tema o serie", ["Star Wars", "Technic", "Ideas", "F1"])
     year = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
-
-    # Campos de catálogo
     storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
     condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
 
-    # Extras opcionales
     st.divider()
     st.markdown("### 🧱 Información adicional (opcional)")
     image_url = st.text_input("🖼️ URL de imagen")
@@ -103,13 +97,19 @@ with tab2:
 
     st.divider()
 
-    # Botón de acción
     if st.button("Enviar operación ⚙️"):
         if not set_number.strip():
             st.warning("Debes especificar al menos el número de set.")
         else:
             with st.spinner("Procesando operación..."):
                 try:
+                    # 👇 Conversión a número entero (nuevo)
+                    try:
+                        set_number_int = int(set_number)
+                    except ValueError:
+                        st.error("El número de set debe ser un número entero.")
+                        st.stop()
+
                     manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
                     minifig_list = []
                     for line in minifigs.splitlines():
@@ -125,7 +125,7 @@ with tab2:
                         payload = {
                             "accion": "alta",
                             "lego": {
-                                "set_number": set_number,
+                                "set_number": set_number_int,  # 👈 Enviar como número
                                 "name": name,
                                 "theme": theme,
                                 "year": year,
@@ -142,7 +142,7 @@ with tab2:
                     elif accion == "baja":
                         payload = {
                             "accion": "baja",
-                            "set_number": set_number
+                            "set_number": set_number_int  # 👈 Enviar como número
                         }
 
                     elif accion == "actualizacion":
@@ -158,15 +158,13 @@ with tab2:
                             "manuals": manual_list,
                             "minifigs": minifig_list
                         }
-                        # Solo enviar campos con valor
                         campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
                         payload = {
                             "accion": "actualizacion",
-                            "set_number": set_number,
+                            "set_number": set_number_int,  # 👈 Enviar como número
                             "campos": campos_filtrados
                         }
 
-                    # Enviar al endpoint
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
 
                     if response.status_code == 200:

@@ -1,5 +1,34 @@
 import streamlit as st
 import requests
+import re
+
+# ------------------------------------------------------------
+# FUNCIÓN: convertir automáticamente enlaces de Google Drive
+# ------------------------------------------------------------
+def convertir_enlace_drive(url):
+    """
+    Si la URL proviene de Google Drive, convierte cualquier formato
+    (view, open, file/d/...) en el formato directo que Streamlit puede mostrar.
+    """
+    if not url or "drive.google.com" not in url:
+        return url
+
+    # Detectar formato "/d/ID"
+    patron = r"/d/([a-zA-Z0-9_-]+)"
+    coincidencia = re.search(patron, url)
+    if coincidencia:
+        file_id = coincidencia.group(1)
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+
+    # Detectar formato con id=ID
+    patron_id = r"id=([a-zA-Z0-9_-]+)"
+    coincidencia_id = re.search(patron_id, url)
+    if coincidencia_id:
+        file_id = coincidencia_id.group(1)
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+
+    return url
+
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -52,12 +81,14 @@ with tab1:
                         st.success("Respuesta:")
                         st.write(respuesta)
 
-                        # 👇 NUEVO: mostrar imágenes si el backend las devuelve
+                        # 👇 Mostrar imágenes si el backend las devuelve
                         if "resultados" in data and isinstance(data["resultados"], list):
                             for item in data["resultados"]:
                                 nombre = item.get("name", "Set sin nombre")
                                 set_number = item.get("set_number", "")
                                 image_url = item.get("image_url", "")
+
+                                image_url = convertir_enlace_drive(image_url)
 
                                 st.markdown(f"#### {nombre} ({set_number})")
                                 if image_url and image_url.startswith("http"):
@@ -111,7 +142,10 @@ with tab2:
     st.markdown("### 🧱 Información adicional (opcional)")
     image_url = st.text_input("🖼️ URL de imagen")
 
-    # 👇 NUEVO: mostrar vista previa de la imagen
+    # 👇 Convertir automáticamente enlaces de Google Drive
+    image_url = convertir_enlace_drive(image_url)
+
+    # 👇 Mostrar vista previa de la imagen
     if image_url and image_url.startswith("http"):
         st.image(image_url, caption="Vista previa del set", use_container_width=True)
 
@@ -126,18 +160,13 @@ with tab2:
         else:
             with st.spinner("Procesando operación..."):
                 try:
-                    # --------------------------------------------------------
                     # Validar que el número de set sea entero
-                    # --------------------------------------------------------
                     try:
                         set_number_int = int(set_number)
                     except ValueError:
                         st.error("El número de set debe ser un número entero.")
                         st.stop()
 
-                    # --------------------------------------------------------
-                    # Procesar campos adicionales
-                    # --------------------------------------------------------
                     manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
                     minifig_list = []
                     for line in minifigs.splitlines():
@@ -148,9 +177,7 @@ with tab2:
                                 "minifig_number": parts[1]
                             })
 
-                    # --------------------------------------------------------
                     # Armar payload según acción
-                    # --------------------------------------------------------
                     if accion == "alta":
                         payload = {
                             "accion": "alta",
@@ -189,7 +216,6 @@ with tab2:
                             "minifigs": minifig_list
                         }
 
-                        # Enviar solo los campos con valor
                         campos_filtrados = {
                             k: v for k, v in campos.items()
                             if v not in ["", None, [], 0]
@@ -201,9 +227,7 @@ with tab2:
                             "campos": campos_filtrados
                         }
 
-                    # --------------------------------------------------------
                     # Enviar a Lambda
-                    # --------------------------------------------------------
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
 
                     if response.status_code == 200:

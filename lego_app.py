@@ -46,9 +46,24 @@ with tab1:
 
                     if response.status_code == 200:
                         data = response.json()
+
+                        # Texto de respuesta principal
                         respuesta = data.get("respuesta", "Sin respuesta.")
                         st.success("Respuesta:")
                         st.write(respuesta)
+
+                        # 👇 NUEVO: mostrar imágenes si el backend las devuelve
+                        if "resultados" in data and isinstance(data["resultados"], list):
+                            for item in data["resultados"]:
+                                nombre = item.get("name", "Set sin nombre")
+                                set_number = item.get("set_number", "")
+                                image_url = item.get("image_url", "")
+
+                                st.markdown(f"#### {nombre} ({set_number})")
+                                if image_url and image_url.startswith("http"):
+                                    st.image(image_url, use_container_width=True)
+                                st.markdown("---")
+
                     else:
                         st.error(f"Error {response.status_code}: {response.text}")
 
@@ -89,9 +104,17 @@ with tab2:
     storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
     condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
 
+    # --------------------------------------------------------
+    # Imagen y campos adicionales
+    # --------------------------------------------------------
     st.divider()
     st.markdown("### 🧱 Información adicional (opcional)")
     image_url = st.text_input("🖼️ URL de imagen")
+
+    # 👇 NUEVO: mostrar vista previa de la imagen
+    if image_url and image_url.startswith("http"):
+        st.image(image_url, caption="Vista previa del set", use_container_width=True)
+
     manuals = st.text_area("📘 URLs de manuales (una por línea)", placeholder="https://...")
     minifigs = st.text_area("🧍 Minifigs (formato: nombre|número por línea)", placeholder="Luke Skywalker|SW0123")
 
@@ -103,13 +126,18 @@ with tab2:
         else:
             with st.spinner("Procesando operación..."):
                 try:
-                    # 👇 Conversión a número entero (nuevo)
+                    # --------------------------------------------------------
+                    # Validar que el número de set sea entero
+                    # --------------------------------------------------------
                     try:
                         set_number_int = int(set_number)
                     except ValueError:
                         st.error("El número de set debe ser un número entero.")
                         st.stop()
 
+                    # --------------------------------------------------------
+                    # Procesar campos adicionales
+                    # --------------------------------------------------------
                     manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
                     minifig_list = []
                     for line in minifigs.splitlines():
@@ -120,12 +148,14 @@ with tab2:
                                 "minifig_number": parts[1]
                             })
 
-                    # Armar el cuerpo según la acción
+                    # --------------------------------------------------------
+                    # Armar payload según acción
+                    # --------------------------------------------------------
                     if accion == "alta":
                         payload = {
                             "accion": "alta",
                             "lego": {
-                                "set_number": set_number_int,  # 👈 Enviar como número
+                                "set_number": set_number_int,
                                 "name": name,
                                 "theme": theme,
                                 "year": year,
@@ -142,7 +172,7 @@ with tab2:
                     elif accion == "baja":
                         payload = {
                             "accion": "baja",
-                            "set_number": set_number_int  # 👈 Enviar como número
+                            "set_number": set_number_int
                         }
 
                     elif accion == "actualizacion":
@@ -158,13 +188,22 @@ with tab2:
                             "manuals": manual_list,
                             "minifigs": minifig_list
                         }
-                        campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
+
+                        # Enviar solo los campos con valor
+                        campos_filtrados = {
+                            k: v for k, v in campos.items()
+                            if v not in ["", None, [], 0]
+                        }
+
                         payload = {
                             "accion": "actualizacion",
-                            "set_number": set_number_int,  # 👈 Enviar como número
+                            "set_number": set_number_int,
                             "campos": campos_filtrados
                         }
 
+                    # --------------------------------------------------------
+                    # Enviar a Lambda
+                    # --------------------------------------------------------
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
 
                     if response.status_code == 200:

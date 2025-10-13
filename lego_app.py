@@ -11,7 +11,7 @@ st.caption("Consulta o administra tu colección LEGO (con dictado nativo en iPho
 
 # URLs de tus funciones Lambda
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
-LAMBDA_ADMIN = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoAdmin"  # puedes usar la misma por ahora
+LAMBDA_ADMIN = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -63,34 +63,58 @@ with tab1:
 with tab2:
     st.subheader("⚙️ Gestión del catálogo LEGO")
 
-    # Tipo de operación
     operacion = st.selectbox(
         "Selecciona una operación:",
         ["Alta de nuevo set", "Baja de set existente", "Cambio / Edición de set"]
     )
 
-    # Campos comunes
-    set_id = st.text_input("🔢 ID del set (por ejemplo: 75336)")
-    nombre = st.text_input("📦 Nombre del set")
-    tema = st.text_input("🏷️ Tema o serie (ej. Star Wars, Technic)")
-    anio = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
-    piezas = st.number_input("🧩 Número de piezas", min_value=0, step=10)
-    caja = st.text_input("📦 Número de caja o ubicación (opcional)")
+    # Campos básicos
+    set_number = st.text_input("🔢 Número de set (ej. 75301)")
+    name = st.text_input("📦 Nombre del set (ej. The Justifier)")
+    theme = st.text_input("🏷️ Tema o serie (ej. Star Wars, Technic)")
+    year = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
+    pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
+
+    # Campos de catálogo
+    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Geronimo"])
+    storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
+    condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
+
+    # Extras opcionales
+    image_url = st.text_input("🖼️ URL de imagen (opcional)")
+    manuals = st.text_area("📘 URLs de manuales (una por línea)", placeholder="https://...")
+    minifigs = st.text_area("🧍 Minifigs (formato: nombre|número por línea)", placeholder="Luke Skywalker|SW0123")
 
     if st.button("Enviar operación ⚙️"):
-        if not set_id.strip():
-            st.warning("Debes especificar al menos el ID del set.")
+        if not set_number.strip():
+            st.warning("Debes especificar al menos el número de set.")
         else:
             with st.spinner("Procesando operación..."):
                 try:
+                    # Convertir los campos de texto a listas
+                    manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
+                    minifig_list = []
+                    for line in minifigs.splitlines():
+                        parts = [p.strip() for p in line.split("|")]
+                        if len(parts) == 2:
+                            minifig_list.append({
+                                "minifig_name": parts[0],
+                                "minifig_number": parts[1]
+                            })
+
                     payload = {
                         "operacion": operacion.lower(),
-                        "set_id": set_id,
-                        "nombre": nombre,
-                        "tema": tema,
-                        "anio": anio,
-                        "piezas": piezas,
-                        "caja": caja
+                        "set_number": set_number,
+                        "name": name,
+                        "theme": theme,
+                        "year": year,
+                        "pieces": pieces,
+                        "storage": storage,
+                        "storage_box": storage_box,
+                        "condition": condition,
+                        "image_url": image_url,
+                        "manuals": manual_list,
+                        "minifigs": minifig_list
                     }
 
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)

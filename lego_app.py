@@ -11,7 +11,7 @@ st.caption("Consulta o administra tu colección LEGO (con dictado nativo en iPho
 
 # URLs de tus funciones Lambda
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
-LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
+LAMBDA_ADMIN = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -70,6 +70,14 @@ with tab2:
         ["Alta de nuevo set", "Baja de set existente", "Cambio / Edición de set"]
     )
 
+    # Mapeo de texto a acción para el backend
+    mapa_acciones = {
+        "Alta de nuevo set": "alta",
+        "Baja de set existente": "baja",
+        "Cambio / Edición de set": "actualizacion"
+    }
+    accion = mapa_acciones[operacion]
+
     # Separador visual
     st.divider()
     st.markdown("### 📋 Datos del set")
@@ -77,10 +85,7 @@ with tab2:
     # Campos básicos
     set_number = st.text_input("🔢 Número de set (ej. 75301)")
     name = st.text_input("📦 Nombre del set (ej. The Justifier)")
-
-    # Theme como catálogo
     theme = st.selectbox("🏷️ Tema o serie", ["Star Wars", "Technic", "Ideas", "F1"])
-
     year = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
 
@@ -105,7 +110,6 @@ with tab2:
         else:
             with st.spinner("Procesando operación..."):
                 try:
-                    # Convertir los campos de texto a listas
                     manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
                     minifig_list = []
                     for line in minifigs.splitlines():
@@ -116,21 +120,53 @@ with tab2:
                                 "minifig_number": parts[1]
                             })
 
-                    payload = {
-                        "operacion": operacion.lower(),
-                        "set_number": set_number,
-                        "name": name,
-                        "theme": theme,
-                        "year": year,
-                        "pieces": pieces,
-                        "storage": storage,
-                        "storage_box": storage_box,
-                        "condition": condition,
-                        "image_url": image_url,
-                        "manuals": manual_list,
-                        "minifigs": minifig_list
-                    }
+                    # Armar el cuerpo según la acción
+                    if accion == "alta":
+                        payload = {
+                            "accion": "alta",
+                            "lego": {
+                                "set_number": set_number,
+                                "name": name,
+                                "theme": theme,
+                                "year": year,
+                                "pieces": pieces,
+                                "storage": storage,
+                                "storage_box": storage_box,
+                                "condition": condition,
+                                "image_url": image_url,
+                                "manuals": manual_list,
+                                "minifigs": minifig_list
+                            }
+                        }
 
+                    elif accion == "baja":
+                        payload = {
+                            "accion": "baja",
+                            "set_number": set_number
+                        }
+
+                    elif accion == "actualizacion":
+                        campos = {
+                            "name": name,
+                            "theme": theme,
+                            "year": year,
+                            "pieces": pieces,
+                            "storage": storage,
+                            "storage_box": storage_box,
+                            "condition": condition,
+                            "image_url": image_url,
+                            "manuals": manual_list,
+                            "minifigs": minifig_list
+                        }
+                        # Solo enviar campos con valor
+                        campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
+                        payload = {
+                            "accion": "actualizacion",
+                            "set_number": set_number,
+                            "campos": campos_filtrados
+                        }
+
+                    # Enviar al endpoint
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
 
                     if response.status_code == 200:

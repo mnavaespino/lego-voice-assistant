@@ -76,7 +76,7 @@ with tab2:
     pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
 
     # Campos de catálogo
-    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Geronimo"])
+    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Jeronimo"])
     storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
     condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
 

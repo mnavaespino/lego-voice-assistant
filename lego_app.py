@@ -81,7 +81,7 @@ with tab1:
                         st.success("Respuesta:")
                         st.write(respuesta)
 
-                        # 👇 Mostrar imágenes si el backend las devuelve
+                        # 👇 Mostrar resultados con link a la imagen
                         if "resultados" in data and isinstance(data["resultados"], list):
                             for item in data["resultados"]:
                                 nombre = item.get("name", "Set sin nombre")
@@ -91,8 +91,10 @@ with tab1:
                                 image_url = convertir_enlace_drive(image_url)
 
                                 st.markdown(f"#### {nombre} ({set_number})")
-                                if image_url and image_url.startswith("http"):
-                                    st.image(image_url, use_container_width=True)
+
+                                if image_url:
+                                    st.markdown(f"[🔗 Ver imagen del set]({image_url})")
+
                                 st.markdown("---")
 
                     else:
@@ -141,13 +143,7 @@ with tab2:
     st.divider()
     st.markdown("### 🧱 Información adicional (opcional)")
     image_url = st.text_input("🖼️ URL de imagen")
-
-    # 👇 Convertir automáticamente enlaces de Google Drive
     image_url = convertir_enlace_drive(image_url)
-
-    # 👇 Mostrar vista previa de la imagen
-    if image_url and image_url.startswith("http"):
-        st.image(image_url, caption="Vista previa del set", use_container_width=True)
 
     manuals = st.text_area("📘 URLs de manuales (una por línea)", placeholder="https://...")
     minifigs = st.text_area("🧍 Minifigs (formato: nombre|número por línea)", placeholder="Luke Skywalker|SW0123")
@@ -247,6 +243,3 @@ with tab2:
 # ------------------------------------------------------------
 st.markdown("---")
 st.caption("Desarrollado por Mike Nava ⚙️ · Firestore + OpenAI + AWS Lambda + Streamlit")
-
-st.image("https://drive.google.com/uc?export=view&id=1UlTpDapG5M6Ls9gW75aCEUeJXsRfoCJT", caption="Prueba de imagen desde Drive", use_container_width=True)
-

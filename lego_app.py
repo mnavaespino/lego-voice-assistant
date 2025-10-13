@@ -247,3 +247,6 @@ with tab2:
 # ------------------------------------------------------------
 st.markdown("---")
 st.caption("Desarrollado por Mike Nava ⚙️ · Firestore + OpenAI + AWS Lambda + Streamlit")
+
+st.image("https://drive.google.com/uc?export=view&id=1UlTpDapG5M6Ls9gW75aCEUeJXsRfoCJT", caption="Prueba de imagen desde Drive", use_container_width=True)
+

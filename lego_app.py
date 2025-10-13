@@ -63,10 +63,16 @@ with tab1:
 with tab2:
     st.subheader("⚙️ Gestión del catálogo LEGO")
 
+    # Sección 1: Selección de operación
+    st.markdown("### 🔧 Tipo de operación")
     operacion = st.selectbox(
         "Selecciona una operación:",
         ["Alta de nuevo set", "Baja de set existente", "Cambio / Edición de set"]
     )
+
+    # Separador visual
+    st.divider()
+    st.markdown("### 📋 Datos del set")
 
     # Campos básicos
     set_number = st.text_input("🔢 Número de set (ej. 75301)")
@@ -81,10 +87,15 @@ with tab2:
     condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
 
     # Extras opcionales
-    image_url = st.text_input("🖼️ URL de imagen (opcional)")
+    st.divider()
+    st.markdown("### 🧱 Información adicional (opcional)")
+    image_url = st.text_input("🖼️ URL de imagen")
     manuals = st.text_area("📘 URLs de manuales (una por línea)", placeholder="https://...")
     minifigs = st.text_area("🧍 Minifigs (formato: nombre|número por línea)", placeholder="Luke Skywalker|SW0123")
 
+    st.divider()
+
+    # Botón de acción
     if st.button("Enviar operación ⚙️"):
         if not set_number.strip():
             st.warning("Debes especificar al menos el número de set.")

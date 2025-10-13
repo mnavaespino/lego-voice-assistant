@@ -11,7 +11,7 @@ st.caption("Consulta o administra tu colección LEGO (con dictado nativo en iPho
 
 # URLs de tus funciones Lambda
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
-LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
+LAMBDA_ADMIN = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -77,12 +77,15 @@ with tab2:
     # Campos básicos
     set_number = st.text_input("🔢 Número de set (ej. 75301)")
     name = st.text_input("📦 Nombre del set (ej. The Justifier)")
-    theme = st.text_input("🏷️ Tema o serie (ej. Star Wars, Technic)")
+
+    # Theme como catálogo
+    theme = st.selectbox("🏷️ Tema o serie", ["Star Wars", "Technic", "Ideas", "F1"])
+
     year = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
 
     # Campos de catálogo
-    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Jeronimo"])
+    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
     condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
 

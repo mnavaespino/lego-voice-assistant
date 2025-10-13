@@ -11,7 +11,7 @@ st.caption("Consulta o administra tu colección LEGO (con dictado nativo en iPho
 
 # URLs de tus funciones Lambda
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
-LAMBDA_ADMIN = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
+LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
 # ------------------------------------------------------------
 # PESTAÑAS

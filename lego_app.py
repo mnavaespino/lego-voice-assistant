@@ -78,10 +78,14 @@ with tab1:
 
                         # Texto de respuesta principal
                         respuesta = data.get("respuesta", "Sin respuesta.")
-                        st.success("Respuesta:")
-                        st.write(respuesta)
 
-                        # 👇 Mostrar resultados con link a la imagen
+                        # 👇 Limpiar sintaxis de imagen vacía del backend
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)
+
+                        st.success("Respuesta:")
+                        st.markdown(respuesta)
+
+                        # 👇 Mostrar resultados con link a imagen si existen
                         if "resultados" in data and isinstance(data["resultados"], list):
                             for item in data["resultados"]:
                                 nombre = item.get("name", "Set sin nombre")

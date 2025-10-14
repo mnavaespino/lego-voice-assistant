@@ -31,7 +31,10 @@ st.caption("Consulta y administra tu colección LEGO")
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
-tab1, tab2 = st.tabs(["🔍 Buscar", "⚙️ Administrar"])
+# ------------------------------------------------------------
+# PESTAÑAS
+# ------------------------------------------------------------
+tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
 # TAB 1: BUSCAR EN CATÁLOGO
@@ -73,29 +76,24 @@ with tab1:
                             lego_web_url = item.get("lego_web_url", "")
 
                             with st.container(border=True):
-                                # 🔹 Mostrar número de set + nombre
                                 st.markdown(f"### {set_number} · {nombre}")
                                 st.caption(f"{theme} · {year}")
 
-                                # 🔹 Línea con piezas, storage y caja (si aplica)
                                 linea_detalle = f"🧩 {piezas} piezas · 🏠 {storage}"
                                 if storage_box and int(storage_box) != 0:
                                     linea_detalle += f" · 📦 Caja {storage_box}"
                                 linea_detalle += f" · 🎁 {condition}"
                                 st.caption(linea_detalle)
 
-                                # 🔗 Imagen y links
                                 if image_url:
                                     st.markdown(f"[🖼️ Imagen del set]({image_url})")
                                 if lego_web_url:
                                     st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
 
-                                # 📘 Manuales con índice
                                 if manuals:
                                     links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
                                     st.markdown("**📘 Manuales:** " + " · ".join(links))
 
-                                # 🧍 Minifigs
                                 if minifigs_names and minifigs_numbers:
                                     figs = ", ".join(
                                         [f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)]
@@ -144,9 +142,7 @@ with tab2:
 
             payload = {"accion": accion.lower()}
 
-            # --------------------------------------------------------
             # ALTA
-            # --------------------------------------------------------
             if accion == "Alta":
                 payload["lego"] = {
                     "set_number": set_number_int,
@@ -166,15 +162,11 @@ with tab2:
                     "created_at": datetime.utcnow().isoformat()
                 }
 
-            # --------------------------------------------------------
             # BAJA
-            # --------------------------------------------------------
             elif accion == "Baja":
                 payload["set_number"] = set_number_int
 
-            # --------------------------------------------------------
             # ACTUALIZACIÓN
-            # --------------------------------------------------------
             else:
                 campos = {
                     "name": name,
@@ -196,13 +188,47 @@ with tab2:
                 payload["set_number"] = set_number_int
                 payload["campos"] = campos_filtrados
 
-            # 🔹 Enviar solicitud a Lambda
+            # Enviar solicitud a Lambda
             r = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
             if r.status_code == 200:
                 st.success(r.json().get("mensaje", "Operación completada."))
             else:
                 st.error(f"Error {r.status_code}: {r.text}")
 
+        except Exception as e:
+            st.error(f"Ocurrió un error: {str(e)}")
+
+# ============================================================
+# TAB 3: LISTADO POR TEMA
+# ============================================================
+with tab3:
+    st.subheader("📦 Listado de sets por tema")
+
+    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
+    if st.button("Mostrar sets"):
+        try:
+            payload = {"accion": "listar", "theme": tema}
+            with st.spinner(f"Obteniendo sets de {tema}..."):
+                r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
+                if r.status_code == 200:
+                    data = r.json()
+                    sets = data.get("sets", [])
+                    if not sets:
+                        st.info("No hay sets en este tema.")
+                    else:
+                        for item in sets:
+                            nombre = item.get("name", "Sin nombre")
+                            set_number = item.get("set_number", "")
+                            piezas = item.get("pieces", "")
+                            image_url = convertir_enlace_drive(item.get("image_url", ""))
+                            condition = item.get("condition", "")
+                            st.markdown(f"### {set_number} · {nombre}")
+                            st.caption(f"🧩 {piezas} piezas · 🎁 {condition}")
+                            if image_url:
+                                st.image(image_url, width=200)
+                            st.markdown("---")
+                else:
+                    st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
 

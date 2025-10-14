@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import re
+import pandas as pd
 
 # ------------------------------------------------------------
 # FUNCIÓN: convertir automáticamente enlaces de Google Drive
@@ -71,58 +72,62 @@ with tab1:
             with st.spinner("Consultando tu colección LEGO... 🧱"):
                 try:
                     payload = {"pregunta": pregunta}
-                    response = requests.post(LAMBDA_SEARCH, json=payload, timeout=30)
+                    response = requests.post(LAMBDA_SEARCH, json=payload, timeout=40)
 
                     if response.status_code == 200:
                         data = response.json()
+                        body = data.get("body")
+
+                        # 🔹 Algunos endpoints regresan doble JSON (string dentro de "body")
+                        if isinstance(body, str):
+                            try:
+                                data = json.loads(body)
+                            except Exception:
+                                pass
 
                         # Texto de respuesta principal
                         respuesta = data.get("respuesta", "Sin respuesta.")
-                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown incompleto
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown roto
 
                         st.success("Respuesta:")
+                        st.markdown(respuesta)
 
-                        # 🔍 Buscar si la respuesta contiene un link de imagen tipo Markdown
-                        imagen_markdown = re.search(r"!\[.*?\]\((https?://[^\s)]+)\)", respuesta)
-                        if imagen_markdown:
-                            url_img = imagen_markdown.group(1)
-                            url_img = convertir_enlace_drive(url_img)
-                            st.image(url_img, width=300)
-                            respuesta = re.sub(r"!\[.*?\]\([^)]+\)", "", respuesta)
+                        # --------------------------------------------------------
+                        # Mostrar resultados si existen
+                        # --------------------------------------------------------
+                        resultados = data.get("resultados", [])
 
-                        # 🔍 Buscar si hay un link a manual
-                        manual_markdown = re.search(r"\[.*?Descarga.*?\]\((https?://[^\s)]+)\)", respuesta, re.IGNORECASE)
-                        if manual_markdown:
-                            st.markdown(respuesta, unsafe_allow_html=True)
-                        else:
-                            st.markdown(respuesta)
-
-                        # 👇 Mostrar resultados con imagen real si existen
-                        if "resultados" in data and isinstance(data["resultados"], list) and len(data["resultados"]) > 0:
+                        if resultados and isinstance(resultados, list):
                             st.markdown("### 🧱 Resultados encontrados:")
 
-                            for item in data["resultados"]:
-                                nombre = item.get("name", "Set sin nombre")
+                            tabla = []
+                            for item in resultados:
+                                nombre = item.get("name", "Sin nombre")
                                 set_number = item.get("set_number", "")
-                                image_url = item.get("image_url", "")
-                                theme = item.get("theme", "")
                                 year = item.get("year", "")
+                                theme = item.get("theme", "")
                                 pieces = item.get("pieces", "")
+                                storage_box = item.get("storage_box", "")
+                                condition = item.get("condition", "")
+                                image_url = convertir_enlace_drive(item.get("image_url", ""))
 
-                                # Convertir enlace de Google Drive
-                                image_url = convertir_enlace_drive(image_url)
+                                # Miniatura (solo URL, se muestra con markdown)
+                                img_html = f'<img src="{image_url}" width="80">' if image_url else ""
 
-                                st.markdown(f"#### {nombre} ({set_number})")
-                                st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas")
+                                tabla.append({
+                                    "Imagen": img_html,
+                                    "Nombre": nombre,
+                                    "Set #": set_number,
+                                    "Año": year,
+                                    "Tema": theme,
+                                    "Piezas": pieces,
+                                    "Caja": storage_box,
+                                    "Condición": condition
+                                })
 
-                                if image_url:
-                                    try:
-                                        st.image(image_url, width=300)
-                                    except Exception:
-                                        st.markdown(f"[🔗 Ver imagen del set]({image_url})")
-
-                                st.markdown("---")
-
+                            # Mostrar tabla con imágenes embebidas
+                            df = pd.DataFrame(tabla)
+                            st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
                         else:
                             st.info("No se encontraron sets que coincidan con tu búsqueda.")
 
@@ -133,6 +138,7 @@ with tab1:
                     st.error(f"Error de conexión: {str(e)}")
                 except Exception as e:
                     st.error(f"Ocurrió un error inesperado: {str(e)}")
+
 
 # ============================================================
 # TAB 2: ALTAS, BAJAS Y CAMBIOS
@@ -222,10 +228,7 @@ with tab2:
                         }
 
                     elif accion == "baja":
-                        payload = {
-                            "accion": "baja",
-                            "set_number": set_number_int
-                        }
+                        payload = {"accion": "baja", "set_number": set_number_int}
 
                     elif accion == "actualizacion":
                         campos = {
@@ -240,12 +243,7 @@ with tab2:
                             "manuals": manual_list,
                             "minifigs": minifig_list
                         }
-
-                        campos_filtrados = {
-                            k: v for k, v in campos.items()
-                            if v not in ["", None, [], 0]
-                        }
-
+                        campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
                         payload = {
                             "accion": "actualizacion",
                             "set_number": set_number_int,
@@ -266,6 +264,7 @@ with tab2:
                     st.error(f"Error de conexión: {str(e)}")
                 except Exception as e:
                     st.error(f"Ocurrió un error inesperado: {str(e)}")
+
 
 # ------------------------------------------------------------
 # PIE DE PÁGINA

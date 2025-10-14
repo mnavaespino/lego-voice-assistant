@@ -27,7 +27,7 @@ def convertir_enlace_drive(url):
 # ------------------------------------------------------------
 def obtener_datos_lego(set_number):
     try:
-        url = f"https://www.lego.com/es-mx/product/{set_number}"
+        url = f"https://www.lego.com/en-us/product/{set_number}"
         headers = {"User-Agent": "Mozilla/5.0"}
         r = requests.get(url, headers=headers, timeout=15, verify=False)
 

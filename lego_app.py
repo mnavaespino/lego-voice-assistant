@@ -36,91 +36,73 @@ tab1, tab2 = st.tabs(["🔍 Buscar", "⚙️ Administrar"])
 # TAB 1: BUSCAR EN CATÁLOGO
 # ============================================================
 with tab1:
-
-    # --------------------------------------------------------
-    # Función: Ejecutar búsqueda (Enter o botón)
-    # --------------------------------------------------------
-    def ejecutar_busqueda():
-        pregunta = st.session_state.pregunta.strip()
-        if not pregunta:
+    pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
+    if st.button("Buscar"):
+        if not pregunta.strip():
             st.warning("Escribe una pregunta.")
-            return
+        else:
+            with st.spinner("Buscando..."):
+                try:
+                    resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
+                    if resp.status_code != 200:
+                        st.error(f"Error {resp.status_code}: {resp.text}")
+                    else:
+                        data = resp.json()
+                        body = data.get("body")
+                        if isinstance(body, str):
+                            data = json.loads(body)
 
-        with st.spinner("Buscando..."):
-            try:
-                resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
-                if resp.status_code != 200:
-                    st.error(f"Error {resp.status_code}: {resp.text}")
-                    return
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
+                        st.markdown(f"**{respuesta}**")
 
-                data = resp.json()
-                body = data.get("body")
-                if isinstance(body, str):
-                    data = json.loads(body)
+                        resultados = data.get("resultados", [])
+                        for item in resultados:
+                            nombre = item.get("name", "Sin nombre")
+                            set_number = item.get("set_number", "")
+                            year = item.get("year", "")
+                            theme = item.get("theme", "")
+                            piezas = item.get("pieces", "")
+                            storage = item.get("storage", "")
+                            storage_box = item.get("storage_box", "")
+                            condition = item.get("condition", "")
+                            image_url = convertir_enlace_drive(item.get("image_url", ""))
+                            manuals = item.get("manuals", [])
+                            minifig_names = item.get("minifig_names", [])
+                            minifigs_numbers = item.get("minifigs_numbers", [])
+                            lego_web_url = item.get("lego_web_url", "")
 
-                respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
-                st.markdown(f"**{respuesta}**")
+                            with st.container(border=True):
+                                # 🔹 Mostrar número de set + nombre
+                                st.markdown(f"### {set_number} · {nombre}")
+                                st.caption(f"{theme} · {year}")
 
-                resultados = data.get("resultados", [])
-                for item in resultados:
-                    nombre = item.get("name", "Sin nombre")
-                    set_number = item.get("set_number", "")
-                    year = item.get("year", "")
-                    theme = item.get("theme", "")
-                    piezas = item.get("pieces", "")
-                    storage = item.get("storage", "")
-                    storage_box = item.get("storage_box", "")
-                    condition = item.get("condition", "")
-                    image_url = convertir_enlace_drive(item.get("image_url", ""))
-                    manuals = item.get("manuals", [])
-                    minifig_names = item.get("minifig_names", [])
-                    minifigs_numbers = item.get("minifigs_numbers", [])
-                    lego_web_url = item.get("lego_web_url", "")
+                                # 🔹 Línea con piezas, storage y caja (si aplica)
+                                linea_detalle = f"🧩 {piezas} piezas · 🏠 {storage}"
+                                if storage_box and int(storage_box) != 0:
+                                    linea_detalle += f" · 📦 Caja {storage_box}"
+                                linea_detalle += f" · 🎁 {condition}"
+                                st.caption(linea_detalle)
 
-                    with st.container(border=True):
-                        # Título
-                        st.markdown(f"### {set_number} · {nombre}")
-                        st.caption(f"{theme} · {year}")
+                                # 🔗 Imagen y links
+                                if image_url:
+                                    st.markdown(f"[🖼️ Imagen del set]({image_url})")
+                                if lego_web_url:
+                                    st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
 
-                        # Línea de detalles
-                        linea_detalle = f"🧩 {piezas} piezas · 🏠 {storage}"
-                        if storage_box and int(storage_box) != 0:
-                            linea_detalle += f" · 📦 Caja {storage_box}"
-                        linea_detalle += f" · 🎁 {condition}"
-                        st.caption(linea_detalle)
+                                # 📘 Manuales con índice
+                                if manuals:
+                                    links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
+                                    st.markdown("**📘 Manuales:** " + " · ".join(links))
 
-                        # Imagen y links
-                        if image_url:
-                            st.markdown(f"[🖼️ Imagen del set]({image_url})")
-                        if lego_web_url:
-                            st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
+                                # 🧍 Minifigs
+                                if minifig_names and minifigs_numbers:
+                                    figs = ", ".join(
+                                        [f"{n} ({num})" for n, num in zip(minifig_names, minifigs_numbers)]
+                                    )
+                                    st.markdown(f"**🧍 Minifigs:** {figs}")
 
-                        # Manuales numerados
-                        if manuals:
-                            links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
-                            st.markdown("**📘 Manuales:** " + " · ".join(links))
-
-                        # Minifigs
-                        if minifig_names and minifigs_numbers:
-                            figs = ", ".join(
-                                [f"{n} ({num})" for n, num in zip(minifig_names, minifigs_numbers)]
-                            )
-                            st.markdown(f"**🧍 Minifigs:** {figs}")
-
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-
-    # --------------------------------------------------------
-    # Campo de texto que lanza búsqueda con ENTER o clic
-    # --------------------------------------------------------
-    st.text_input(
-        "🔍 Pregunta",
-        placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?",
-        key="pregunta",
-        on_change=ejecutar_busqueda,  # ENTER dispara búsqueda
-    )
-
-    st.button("Buscar", on_click=ejecutar_busqueda)
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 # ============================================================
 # TAB 2: ADMINISTRAR CATÁLOGO
@@ -148,7 +130,7 @@ with tab2:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
 
-            # Separar minifigs en dos listas
+            # 🔹 Separar minifigs en dos listas
             minifig_names = []
             minifigs_numbers = []
             for line in minifigs.splitlines():
@@ -161,7 +143,9 @@ with tab2:
 
             payload = {"accion": accion.lower()}
 
+            # --------------------------------------------------------
             # ALTA
+            # --------------------------------------------------------
             if accion == "Alta":
                 payload["lego"] = {
                     "set_number": set_number_int,
@@ -180,11 +164,15 @@ with tab2:
                     "tags": tags_list,
                 }
 
+            # --------------------------------------------------------
             # BAJA
+            # --------------------------------------------------------
             elif accion == "Baja":
                 payload["set_number"] = set_number_int
 
+            # --------------------------------------------------------
             # ACTUALIZACIÓN
+            # --------------------------------------------------------
             else:
                 campos = {
                     "name": name,
@@ -205,7 +193,7 @@ with tab2:
                 payload["set_number"] = set_number_int
                 payload["campos"] = campos_filtrados
 
-            # Enviar solicitud a Lambda
+            # 🔹 Enviar solicitud a Lambda
             r = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
             if r.status_code == 200:
                 st.success(r.json().get("mensaje", "Operación completada."))

@@ -93,7 +93,7 @@ with tab1:
                         st.markdown(respuesta)
 
                         # --------------------------------------------------------
-                        # Mostrar resultados como tarjetas visuales
+                        # Mostrar resultados con links (imagen + manuales)
                         # --------------------------------------------------------
                         resultados = data.get("resultados", [])
 
@@ -109,21 +109,32 @@ with tab1:
                                 storage_box = item.get("storage_box", "")
                                 condition = item.get("condition", "")
                                 image_url = convertir_enlace_drive(item.get("image_url", ""))
+                                manuals = item.get("manuals", [])
+                                minifigs = item.get("minifigs", [])
 
-                                # Crear diseño de tarjeta con dos columnas
-                                cols = st.columns([1, 2])
-                                with cols[0]:
-                                    if image_url:
-                                        st.image(image_url, width=130)
-                                    else:
-                                        st.text("🖼️ Sin imagen")
+                                # Mostrar detalles principales
+                                st.markdown(f"#### {nombre} ({set_number})")
+                                st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas | 📦 Caja {storage_box} | 🎁 {condition}")
 
-                                with cols[1]:
-                                    st.markdown(f"**{nombre}** ({set_number})")
-                                    st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas")
-                                    st.caption(f"📦 Caja {storage_box} | 🎁 {condition}")
+                                # 🔗 Link a la imagen
+                                if image_url:
+                                    st.markdown(f"[🖼️ Ver imagen del set]({image_url})")
 
-                                st.divider()
+                                # 📘 Links a manuales (si existen)
+                                if manuals:
+                                    st.markdown("**📘 Manuales disponibles:**")
+                                    for m in manuals:
+                                        st.markdown(f"- [Abrir manual]({m})")
+
+                                # 🧍 Minifigs (si existen)
+                                if minifigs:
+                                    st.markdown("**🧍 Minifigs incluidas:**")
+                                    for fig in minifigs:
+                                        nombre_fig = fig.get("minifig_name", "Sin nombre")
+                                        numero_fig = fig.get("minifig_number", "")
+                                        st.markdown(f"- {nombre_fig} ({numero_fig})")
+
+                                st.markdown("---")
 
                         else:
                             st.info("No se encontraron sets que coincidan con tu búsqueda.")
@@ -138,7 +149,7 @@ with tab1:
 
 
 # ============================================================
-# TAB 2: ALTAS, BAJAS Y CAMBIOS
+# TAB 2: ALTAS, BAJAS Y CAMBIOS (sin cambios)
 # ============================================================
 with tab2:
     st.subheader("⚙️ Gestión del catálogo LEGO")
@@ -188,13 +199,7 @@ with tab2:
         else:
             with st.spinner("Procesando operación..."):
                 try:
-                    # Validar que el número de set sea entero
-                    try:
-                        set_number_int = int(set_number)
-                    except ValueError:
-                        st.error("El número de set debe ser un número entero.")
-                        st.stop()
-
+                    set_number_int = int(set_number)
                     manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
                     minifig_list = []
                     for line in minifigs.splitlines():
@@ -205,7 +210,6 @@ with tab2:
                                 "minifig_number": parts[1]
                             })
 
-                    # Armar payload según acción
                     if accion == "alta":
                         payload = {
                             "accion": "alta",
@@ -223,10 +227,8 @@ with tab2:
                                 "minifigs": minifig_list
                             }
                         }
-
                     elif accion == "baja":
                         payload = {"accion": "baja", "set_number": set_number_int}
-
                     elif accion == "actualizacion":
                         campos = {
                             "name": name,
@@ -247,21 +249,14 @@ with tab2:
                             "campos": campos_filtrados
                         }
 
-                    # Enviar a Lambda
                     response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
-
                     if response.status_code == 200:
-                        data = response.json()
-                        mensaje = data.get("mensaje", "Operación completada correctamente.")
-                        st.success(mensaje)
+                        st.success(response.json().get("mensaje", "Operación completada correctamente."))
                     else:
                         st.error(f"Error {response.status_code}: {response.text}")
 
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Error de conexión: {str(e)}")
                 except Exception as e:
                     st.error(f"Ocurrió un error inesperado: {str(e)}")
-
 
 # ------------------------------------------------------------
 # PIE DE PÁGINA

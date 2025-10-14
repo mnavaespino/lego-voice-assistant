@@ -123,7 +123,7 @@ with tab2:
     image_url = st.text_input("URL imagen", placeholder="https://drive.google.com/...")
     lego_web_url = st.text_input("URL página LEGO (opcional)", placeholder="https://www.lego.com/...")
     manuals = st.text_area("Manuales (uno por línea)")
-    minifigs = st.text_area("Minifigs (formato: nombre|número por línea)")
+    minifigs = st.text_area("Minifigs (formato: número: nombre por línea, ej. SW1378: Ackbar Trooper)")
     tags = st.text_area("Tags (separados por comas)", placeholder="nave, star wars, exclusivo")
 
     if st.button("Enviar"):
@@ -135,10 +135,10 @@ with tab2:
             minifigs_names = []
             minifigs_numbers = []
             for line in minifigs.splitlines():
-                p = [x.strip() for x in line.split("|")]
+                p = [x.strip() for x in line.split(":")]
                 if len(p) == 2:
-                    minifigs_names.append(p[0])
-                    minifigs_numbers.append(p[1])
+                    minifigs_names.append(p[1])
+                    minifigs_numbers.append(p[0])
 
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
 

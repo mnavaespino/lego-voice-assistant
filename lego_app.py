@@ -68,7 +68,7 @@ with tab1:
                             condition = item.get("condition", "")
                             image_url = convertir_enlace_drive(item.get("image_url", ""))
                             manuals = item.get("manuals", [])
-                            minifig_names = item.get("minifig_names", [])
+                            minifigs_names = item.get("minifigs_names", [])
                             minifigs_numbers = item.get("minifigs_numbers", [])
                             lego_web_url = item.get("lego_web_url", "")
 
@@ -96,9 +96,9 @@ with tab1:
                                     st.markdown("**📘 Manuales:** " + " · ".join(links))
 
                                 # 🧍 Minifigs
-                                if minifig_names and minifigs_numbers:
+                                if minifigs_names and minifigs_numbers:
                                     figs = ", ".join(
-                                        [f"{n} ({num})" for n, num in zip(minifig_names, minifigs_numbers)]
+                                        [f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)]
                                     )
                                     st.markdown(f"**🧍 Minifigs:** {figs}")
 
@@ -132,12 +132,12 @@ with tab2:
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
 
             # 🔹 Separar minifigs en dos listas
-            minifig_names = []
+            minifigs_names = []
             minifigs_numbers = []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split("|")]
                 if len(p) == 2:
-                    minifig_names.append(p[0])
+                    minifigs_names.append(p[0])
                     minifigs_numbers.append(p[1])
 
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
@@ -160,7 +160,7 @@ with tab2:
                     "image_url": convertir_enlace_drive(image_url),
                     "lego_web_url": lego_web_url,
                     "manuals": manual_list,
-                    "minifig_names": minifig_names,
+                    "minifigs_names": minifigs_names,
                     "minifigs_numbers": minifigs_numbers,
                     "tags": tags_list,
                     "created_at": datetime.utcnow().isoformat()
@@ -187,7 +187,7 @@ with tab2:
                     "image_url": convertir_enlace_drive(image_url),
                     "lego_web_url": lego_web_url,
                     "manuals": manual_list,
-                    "minifig_names": minifig_names,
+                    "minifigs_names": minifigs_names,
                     "minifigs_numbers": minifigs_numbers,
                     "tags": tags_list,
                     "modified_at": datetime.utcnow().isoformat()

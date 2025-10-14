@@ -78,10 +78,24 @@ with tab1:
 
                         # Texto de respuesta principal
                         respuesta = data.get("respuesta", "Sin respuesta.")
-                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown incompleto
 
                         st.success("Respuesta:")
-                        st.markdown(respuesta)
+
+                        # 🔍 Buscar si la respuesta contiene un link de imagen tipo Markdown
+                        imagen_markdown = re.search(r"!\[.*?\]\((https?://[^\s)]+)\)", respuesta)
+                        if imagen_markdown:
+                            url_img = imagen_markdown.group(1)
+                            url_img = convertir_enlace_drive(url_img)
+                            st.image(url_img, width=300)
+                            respuesta = re.sub(r"!\[.*?\]\([^)]+\)", "", respuesta)
+
+                        # 🔍 Buscar si hay un link a manual
+                        manual_markdown = re.search(r"\[.*?Descarga.*?\]\((https?://[^\s)]+)\)", respuesta, re.IGNORECASE)
+                        if manual_markdown:
+                            st.markdown(respuesta, unsafe_allow_html=True)
+                        else:
+                            st.markdown(respuesta)
 
                         # 👇 Mostrar resultados con imagen real si existen
                         if "resultados" in data and isinstance(data["resultados"], list) and len(data["resultados"]) > 0:
@@ -98,11 +112,9 @@ with tab1:
                                 # Convertir enlace de Google Drive
                                 image_url = convertir_enlace_drive(image_url)
 
-                                # Mostrar encabezado bonito del set
                                 st.markdown(f"#### {nombre} ({set_number})")
                                 st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas")
 
-                                # Mostrar imagen si existe
                                 if image_url:
                                     try:
                                         st.image(image_url, width=300)

@@ -78,28 +78,41 @@ with tab1:
 
                         # Texto de respuesta principal
                         respuesta = data.get("respuesta", "Sin respuesta.")
-
-                        # 👇 Limpiar sintaxis de imagen vacía del backend
-                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown
 
                         st.success("Respuesta:")
                         st.markdown(respuesta)
 
-                        # 👇 Mostrar resultados con link a imagen si existen
-                        if "resultados" in data and isinstance(data["resultados"], list):
+                        # 👇 Mostrar resultados con imagen real si existen
+                        if "resultados" in data and isinstance(data["resultados"], list) and len(data["resultados"]) > 0:
+                            st.markdown("### 🧱 Resultados encontrados:")
+
                             for item in data["resultados"]:
                                 nombre = item.get("name", "Set sin nombre")
                                 set_number = item.get("set_number", "")
                                 image_url = item.get("image_url", "")
+                                theme = item.get("theme", "")
+                                year = item.get("year", "")
+                                pieces = item.get("pieces", "")
 
+                                # Convertir enlace de Google Drive
                                 image_url = convertir_enlace_drive(image_url)
 
+                                # Mostrar encabezado bonito del set
                                 st.markdown(f"#### {nombre} ({set_number})")
+                                st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas")
 
+                                # Mostrar imagen si existe
                                 if image_url:
-                                    st.markdown(f"[🔗 Ver imagen del set]({image_url})")
+                                    try:
+                                        st.image(image_url, width=300)
+                                    except Exception:
+                                        st.markdown(f"[🔗 Ver imagen del set]({image_url})")
 
                                 st.markdown("---")
+
+                        else:
+                            st.info("No se encontraron sets que coincidan con tu búsqueda.")
 
                     else:
                         st.error(f"Error {response.status_code}: {response.text}")

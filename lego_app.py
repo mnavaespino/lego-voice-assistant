@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import re
-import pandas as pd
+import json
 
 # ------------------------------------------------------------
 # FUNCIÓN: convertir automáticamente enlaces de Google Drive
@@ -93,14 +93,13 @@ with tab1:
                         st.markdown(respuesta)
 
                         # --------------------------------------------------------
-                        # Mostrar resultados si existen
+                        # Mostrar resultados como tarjetas visuales
                         # --------------------------------------------------------
                         resultados = data.get("resultados", [])
 
                         if resultados and isinstance(resultados, list):
                             st.markdown("### 🧱 Resultados encontrados:")
 
-                            tabla = []
                             for item in resultados:
                                 nombre = item.get("name", "Sin nombre")
                                 set_number = item.get("set_number", "")
@@ -111,23 +110,21 @@ with tab1:
                                 condition = item.get("condition", "")
                                 image_url = convertir_enlace_drive(item.get("image_url", ""))
 
-                                # Miniatura (solo URL, se muestra con markdown)
-                                img_html = f'<img src="{image_url}" width="80">' if image_url else ""
+                                # Crear diseño de tarjeta con dos columnas
+                                cols = st.columns([1, 2])
+                                with cols[0]:
+                                    if image_url:
+                                        st.image(image_url, width=130)
+                                    else:
+                                        st.text("🖼️ Sin imagen")
 
-                                tabla.append({
-                                    "Imagen": img_html,
-                                    "Nombre": nombre,
-                                    "Set #": set_number,
-                                    "Año": year,
-                                    "Tema": theme,
-                                    "Piezas": pieces,
-                                    "Caja": storage_box,
-                                    "Condición": condition
-                                })
+                                with cols[1]:
+                                    st.markdown(f"**{nombre}** ({set_number})")
+                                    st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas")
+                                    st.caption(f"📦 Caja {storage_box} | 🎁 {condition}")
 
-                            # Mostrar tabla con imágenes embebidas
-                            df = pd.DataFrame(tabla)
-                            st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+                                st.divider()
+
                         else:
                             st.info("No se encontraron sets que coincidan con tu búsqueda.")
 

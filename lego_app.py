@@ -29,7 +29,7 @@ def obtener_datos_lego(set_number):
     try:
         url = f"https://www.lego.com/es-mx/product/{set_number}"
         headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=15)
+        r = requests.get(url, headers=headers, timeout=15, verify=False)
 
         if r.status_code != 200:
             return {"error": f"No se pudo acceder ({r.status_code})"}

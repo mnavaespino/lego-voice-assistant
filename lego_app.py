@@ -30,14 +30,14 @@ st.caption("Consulta y administra tu colección LEGO")
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
-tab1, tab2 = st.tabs(["🔍 Buscar", "⚙️ Administrar"])
+tab1, tab2 = st.tabs(["Buscar", "Administrar"])
 
 # ============================================================
 # TAB 1: BUSCAR EN CATÁLOGO
 # ============================================================
 with tab1:
     pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
-    if st.button("🔍 Buscar"):
+    if st.button("Buscar"):
         if not pregunta.strip():
             st.warning("Escribe una pregunta.")
         else:
@@ -69,8 +69,9 @@ with tab1:
                             minifigs = item.get("minifigs", [])
 
                             with st.container(border=True):
-                                st.markdown(f"### {nombre}")
-                                st.caption(f"{set_number} · {theme} · {year}")
+                                # 🔹 Mostrar número de set + nombre en la misma línea
+                                st.markdown(f"### {set_number} · {nombre}")
+                                st.caption(f"{theme} · {year}")
                                 st.caption(f"🧩 {piezas} piezas · Caja {storage_box} · {condition}")
 
                                 if image_url:

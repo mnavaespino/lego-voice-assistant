@@ -162,6 +162,7 @@ with tab2:
                     "minifig_names": minifig_names,
                     "minifigs_numbers": minifigs_numbers,
                     "tags": tags_list,
+                    "created_at": datetime.utcnow().isoformat()
                 }
 
             # --------------------------------------------------------

@@ -4,262 +4,163 @@ import re
 import json
 
 # ------------------------------------------------------------
-# FUNCIÓN: convertir automáticamente enlaces de Google Drive
+# CONVERTIR LINKS DE GOOGLE DRIVE
 # ------------------------------------------------------------
 def convertir_enlace_drive(url):
-    """
-    Si la URL proviene de Google Drive, convierte cualquier formato
-    (view, open, file/d/...) en el formato directo que Streamlit puede mostrar.
-    """
     if not url or "drive.google.com" not in url:
         return url
-
-    # Detectar formato "/d/ID"
     patron = r"/d/([a-zA-Z0-9_-]+)"
-    coincidencia = re.search(patron, url)
-    if coincidencia:
-        file_id = coincidencia.group(1)
-        return f"https://drive.google.com/uc?export=view&id={file_id}"
-
-    # Detectar formato con id=ID
-    patron_id = r"id=([a-zA-Z0-9_-]+)"
-    coincidencia_id = re.search(patron_id, url)
-    if coincidencia_id:
-        file_id = coincidencia_id.group(1)
-        return f"https://drive.google.com/uc?export=view&id={file_id}"
-
+    m = re.search(patron, url)
+    if m:
+        return f"https://drive.google.com/uc?export=view&id={m.group(1)}"
+    patron = r"id=([a-zA-Z0-9_-]+)"
+    m = re.search(patron, url)
+    if m:
+        return f"https://drive.google.com/uc?export=view&id={m.group(1)}"
     return url
 
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
 # ------------------------------------------------------------
-st.set_page_config(page_title="Asistente LEGO IA", page_icon="🧱", layout="centered")
+st.set_page_config(page_title="LEGO IA", page_icon="🧱", layout="centered")
+st.title("🧱 LEGO IA")
+st.caption("Consulta y administra tu colección LEGO")
 
-st.title("🧱 Administrador y Buscador LEGO IA")
-st.caption("Consulta o administra tu colección LEGO (con dictado nativo en iPhone 🗣️)")
-
-# URLs de tus funciones Lambda
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
-# ------------------------------------------------------------
-# PESTAÑAS
-# ------------------------------------------------------------
-tab1, tab2 = st.tabs(["🔍 Buscar en catálogo", "⚙️ Altas, Bajas y Cambios"])
+tab1, tab2 = st.tabs(["Buscar", "Administrar"])
 
 # ============================================================
 # TAB 1: BUSCAR EN CATÁLOGO
 # ============================================================
 with tab1:
-    st.markdown("""
-    ### Ejemplos de preguntas
-    - ¿Tengo el set Justifier?
-    - ¿Qué sets de LEGO son entre el año 2020 y 2021?
-    - ¿Cuántos sets de Star Wars tengo?
-    - ¿Qué sets tengo guardados en la caja 12?
-    """)
-
-    pregunta = st.text_input(
-        "🗣️ Escribe o dicta tu pregunta:",
-        placeholder="Ejemplo: ¿Qué sets de LEGO tengo en la caja 12?"
-    )
-
-    if st.button("Preguntar 🧱"):
+    pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
+    if st.button("Buscar"):
         if not pregunta.strip():
-            st.warning("Por favor, escribe una pregunta.")
+            st.warning("Escribe una pregunta.")
         else:
-            with st.spinner("Consultando tu colección LEGO... 🧱"):
+            with st.spinner("Buscando..."):
                 try:
-                    payload = {"pregunta": pregunta}
-                    response = requests.post(LAMBDA_SEARCH, json=payload, timeout=40)
-
-                    if response.status_code == 200:
-                        data = response.json()
-                        body = data.get("body")
-
-                        # 🔹 Algunos endpoints regresan doble JSON (string dentro de "body")
-                        if isinstance(body, str):
-                            try:
-                                data = json.loads(body)
-                            except Exception:
-                                pass
-
-                        # Texto de respuesta principal
-                        respuesta = data.get("respuesta", "Sin respuesta.")
-                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", respuesta)  # Limpieza Markdown roto
-
-                        st.success("Respuesta:")
-                        st.markdown(respuesta)
-
-                        # --------------------------------------------------------
-                        # Mostrar resultados con links (imagen + manuales)
-                        # --------------------------------------------------------
-                        resultados = data.get("resultados", [])
-
-                        if resultados and isinstance(resultados, list):
-                            st.markdown("### 🧱 Resultados encontrados:")
-
-                            for item in resultados:
-                                nombre = item.get("name", "Sin nombre")
-                                set_number = item.get("set_number", "")
-                                year = item.get("year", "")
-                                theme = item.get("theme", "")
-                                pieces = item.get("pieces", "")
-                                storage_box = item.get("storage_box", "")
-                                condition = item.get("condition", "")
-                                image_url = convertir_enlace_drive(item.get("image_url", ""))
-                                manuals = item.get("manuals", [])
-                                minifigs = item.get("minifigs", [])
-
-                                # Mostrar detalles principales
-                                st.markdown(f"#### {nombre} ({set_number})")
-                                st.caption(f"📅 {year} | 🏷️ {theme} | 🧩 {pieces} piezas | 📦 Caja {storage_box} | 🎁 {condition}")
-
-                                # 🔗 Link a la imagen
-                                if image_url:
-                                    st.markdown(f"[🖼️ Ver imagen del set]({image_url})")
-
-                                # 📘 Links a manuales (si existen)
-                                if manuals:
-                                    st.markdown("**📘 Manuales disponibles:**")
-                                    for m in manuals:
-                                        st.markdown(f"- [Abrir manual]({m})")
-
-                                # 🧍 Minifigs (si existen)
-                                if minifigs:
-                                    st.markdown("**🧍 Minifigs incluidas:**")
-                                    for fig in minifigs:
-                                        nombre_fig = fig.get("minifig_name", "Sin nombre")
-                                        numero_fig = fig.get("minifig_number", "")
-                                        st.markdown(f"- {nombre_fig} ({numero_fig})")
-
-                                st.markdown("---")
-
-                        else:
-                            st.info("No se encontraron sets que coincidan con tu búsqueda.")
-
+                    resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
+                    if resp.status_code != 200:
+                        st.error(f"Error {resp.status_code}: {resp.text}")
                     else:
-                        st.error(f"Error {response.status_code}: {response.text}")
+                        data = resp.json()
+                        body = data.get("body")
+                        if isinstance(body, str):
+                            data = json.loads(body)
 
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Error de conexión: {str(e)}")
+                        respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
+                        st.markdown(f"**{respuesta}**")
+
+                        resultados = data.get("resultados", [])
+                        for item in resultados:
+                            nombre = item.get("name", "Sin nombre")
+                            set_number = item.get("set_number", "")
+                            year = item.get("year", "")
+                            theme = item.get("theme", "")
+                            piezas = item.get("pieces", "")
+                            storage_box = item.get("storage_box", "")
+                            condition = item.get("condition", "")
+                            image_url = convertir_enlace_drive(item.get("image_url", ""))
+                            manuals = item.get("manuals", [])
+                            minifigs = item.get("minifigs", [])
+
+                            with st.container(border=True):
+                                st.markdown(f"### {nombre}")
+                                st.caption(f"{set_number} · {theme} · {year}")
+                                st.caption(f"🧩 {piezas} piezas · Caja {storage_box} · {condition}")
+
+                                if image_url:
+                                    st.markdown(f"[🖼️ Imagen del set]({image_url})")
+
+                                if manuals:
+                                    st.markdown("**📘 Manuales:** " + " · ".join(
+                                        [f"[Ver]({m})" for m in manuals]
+                                    ))
+
+                                if minifigs:
+                                    figs = ", ".join([f"{f['minifig_name']} ({f['minifig_number']})" for f in minifigs])
+                                    st.markdown(f"**🧍 Minifigs:** {figs}")
+
                 except Exception as e:
-                    st.error(f"Ocurrió un error inesperado: {str(e)}")
-
+                    st.error(f"Error: {str(e)}")
 
 # ============================================================
-# TAB 2: ALTAS, BAJAS Y CAMBIOS (sin cambios)
+# TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
 with tab2:
-    st.subheader("⚙️ Gestión del catálogo LEGO")
-
-    st.markdown("### 🔧 Tipo de operación")
-    operacion = st.selectbox(
-        "Selecciona una operación:",
-        ["Alta de nuevo set", "Baja de set existente", "Cambio / Edición de set"]
-    )
-
-    mapa_acciones = {
-        "Alta de nuevo set": "alta",
-        "Baja de set existente": "baja",
-        "Cambio / Edición de set": "actualizacion"
-    }
-    accion = mapa_acciones[operacion]
-
-    st.divider()
-    st.markdown("### 📋 Datos del set")
-
-    # Campos básicos
-    set_number = st.text_input("🔢 Número de set (ej. 75301)")
-    name = st.text_input("📦 Nombre del set (ej. The Justifier)")
-    theme = st.selectbox("🏷️ Tema o serie", ["Star Wars", "Technic", "Ideas", "F1"])
-    year = st.number_input("📅 Año de lanzamiento", min_value=1970, max_value=2030, step=1)
-    pieces = st.number_input("🧩 Número de piezas", min_value=0, step=10)
-    storage = st.selectbox("📦 Ubicación (storage)", ["Cobalto", "San Geronimo"])
-    storage_box = st.number_input("📦 Número de caja", min_value=0, step=1)
-    condition = st.selectbox("🎁 Condición del set", ["In Lego Box", "Open"])
-
-    # --------------------------------------------------------
-    # Imagen y campos adicionales
-    # --------------------------------------------------------
-    st.divider()
-    st.markdown("### 🧱 Información adicional (opcional)")
-    image_url = st.text_input("🖼️ URL de imagen")
-    image_url = convertir_enlace_drive(image_url)
-
-    manuals = st.text_area("📘 URLs de manuales (una por línea)", placeholder="https://...")
-    minifigs = st.text_area("🧍 Minifigs (formato: nombre|número por línea)", placeholder="Luke Skywalker|SW0123")
-
+    accion = st.radio("Acción", ["Alta", "Baja", "Actualización"], horizontal=True)
     st.divider()
 
-    if st.button("Enviar operación ⚙️"):
-        if not set_number.strip():
-            st.warning("Debes especificar al menos el número de set.")
-        else:
-            with st.spinner("Procesando operación..."):
-                try:
-                    set_number_int = int(set_number)
-                    manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
-                    minifig_list = []
-                    for line in minifigs.splitlines():
-                        parts = [p.strip() for p in line.split("|")]
-                        if len(parts) == 2:
-                            minifig_list.append({
-                                "minifig_name": parts[0],
-                                "minifig_number": parts[1]
-                            })
+    set_number = st.text_input("Número de set")
+    name = st.text_input("Nombre")
+    theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
+    year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
+    pieces = st.number_input("Piezas", min_value=0, step=10)
+    storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
+    storage_box = st.number_input("Caja", min_value=0, step=1)
+    condition = st.selectbox("Condición", ["In Lego Box", "Open"])
+    image_url = st.text_input("URL imagen", placeholder="https://drive.google.com/...")
+    manuals = st.text_area("Manuales (uno por línea)")
+    minifigs = st.text_area("Minifigs (nombre|número por línea)")
 
-                    if accion == "alta":
-                        payload = {
-                            "accion": "alta",
-                            "lego": {
-                                "set_number": set_number_int,
-                                "name": name,
-                                "theme": theme,
-                                "year": year,
-                                "pieces": pieces,
-                                "storage": storage,
-                                "storage_box": storage_box,
-                                "condition": condition,
-                                "image_url": image_url,
-                                "manuals": manual_list,
-                                "minifigs": minifig_list
-                            }
-                        }
-                    elif accion == "baja":
-                        payload = {"accion": "baja", "set_number": set_number_int}
-                    elif accion == "actualizacion":
-                        campos = {
-                            "name": name,
-                            "theme": theme,
-                            "year": year,
-                            "pieces": pieces,
-                            "storage": storage,
-                            "storage_box": storage_box,
-                            "condition": condition,
-                            "image_url": image_url,
-                            "manuals": manual_list,
-                            "minifigs": minifig_list
-                        }
-                        campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
-                        payload = {
-                            "accion": "actualizacion",
-                            "set_number": set_number_int,
-                            "campos": campos_filtrados
-                        }
+    if st.button("Enviar"):
+        try:
+            set_number_int = int(set_number)
+            manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
+            minifig_list = []
+            for line in minifigs.splitlines():
+                p = [x.strip() for x in line.split("|")]
+                if len(p) == 2:
+                    minifig_list.append({"minifig_name": p[0], "minifig_number": p[1]})
 
-                    response = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
-                    if response.status_code == 200:
-                        st.success(response.json().get("mensaje", "Operación completada correctamente."))
-                    else:
-                        st.error(f"Error {response.status_code}: {response.text}")
+            payload = {"accion": accion.lower()}
 
-                except Exception as e:
-                    st.error(f"Ocurrió un error inesperado: {str(e)}")
+            if accion == "Alta":
+                payload["lego"] = {
+                    "set_number": set_number_int,
+                    "name": name,
+                    "theme": theme,
+                    "year": year,
+                    "pieces": pieces,
+                    "storage": storage,
+                    "storage_box": storage_box,
+                    "condition": condition,
+                    "image_url": convertir_enlace_drive(image_url),
+                    "manuals": manual_list,
+                    "minifigs": minifig_list,
+                }
+            elif accion == "Baja":
+                payload["set_number"] = set_number_int
+            else:
+                campos = {
+                    "name": name,
+                    "theme": theme,
+                    "year": year,
+                    "pieces": pieces,
+                    "storage": storage,
+                    "storage_box": storage_box,
+                    "condition": condition,
+                    "image_url": convertir_enlace_drive(image_url),
+                    "manuals": manual_list,
+                    "minifigs": minifig_list,
+                }
+                payload["set_number"] = set_number_int
+                payload["campos"] = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
+
+            r = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
+            if r.status_code == 200:
+                st.success(r.json().get("mensaje", "Operación completada."))
+            else:
+                st.error(f"Error {r.status_code}: {r.text}")
+        except Exception as e:
+            st.error(f"Ocurrió un error: {str(e)}")
 
 # ------------------------------------------------------------
-# PIE DE PÁGINA
+# PIE
 # ------------------------------------------------------------
 st.markdown("---")
-st.caption("Desarrollado por Mike Nava ⚙️ · Firestore + OpenAI + AWS Lambda + Streamlit")
+st.caption("Desarrollado por Mike Nava · Firestore + OpenAI + AWS Lambda + Streamlit")

@@ -189,6 +189,7 @@ with tab2:
                     "minifig_names": minifig_names,
                     "minifigs_numbers": minifigs_numbers,
                     "tags": tags_list,
+                    "modified_at": datetime.utcnow().isoformat()
                 }
                 campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
                 payload["set_number"] = set_number_int

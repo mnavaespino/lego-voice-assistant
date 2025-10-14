@@ -3,6 +3,7 @@ import requests
 import re
 import json
 from datetime import datetime
+import pandas as pd  # 👈 para mostrar los resultados en tabla
 
 # ------------------------------------------------------------
 # CONVERTIR LINKS DE GOOGLE DRIVE
@@ -76,29 +77,24 @@ with tab1:
                             lego_web_url = item.get("lego_web_url", "")
 
                             with st.container(border=True):
-                                # 🔹 Mostrar número de set + nombre
                                 st.markdown(f"### {set_number} · {nombre}")
                                 st.caption(f"{theme} · {year}")
 
-                                # 🔹 Línea con piezas, storage y caja (si aplica)
                                 linea_detalle = f"🧩 {piezas} piezas · 🏠 {storage}"
                                 if storage_box and int(storage_box) != 0:
                                     linea_detalle += f" · 📦 Caja {storage_box}"
                                 linea_detalle += f" · 🎁 {condition}"
                                 st.caption(linea_detalle)
 
-                                # 🔗 Imagen y links
                                 if image_url:
                                     st.markdown(f"[🖼️ Imagen del set]({image_url})")
                                 if lego_web_url:
                                     st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
 
-                                # 📘 Manuales con índice
                                 if manuals:
                                     links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
                                     st.markdown("**📘 Manuales:** " + " · ".join(links))
 
-                                # 🧍 Minifigs
                                 if minifigs_names and minifigs_numbers:
                                     figs = ", ".join(
                                         [f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)]
@@ -204,7 +200,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (usa legoSearch)
+# TAB 3: LISTADO POR TEMA (ahora simplificado tipo tabla)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -215,7 +211,7 @@ with tab3:
         try:
             pregunta = f"Muéstrame todos los sets del tema {tema}"
 
-            with st.spinner(f"Buscando sets de {tema}..."):
+            with st.spinner(f"Obteniendo sets de {tema}..."):
                 r = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
                 if r.status_code == 200:
                     data = r.json()
@@ -227,27 +223,20 @@ with tab3:
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
-                        for item in resultados:
-                            nombre = item.get("name", "Sin nombre")
-                            set_number = item.get("set_number", "")
-                            piezas = item.get("pieces", "")
-                            condition = item.get("condition", "")
-                            image_url = convertir_enlace_drive(item.get("image_url", ""))
-                            year = item.get("year", "")
-                            storage = item.get("storage", "")
-                            storage_box = item.get("storage_box", "")
+                        # Convertir los resultados a DataFrame
+                        df = pd.DataFrame(resultados)
 
-                            with st.container(border=True):
-                                st.markdown(f"### {set_number} · {nombre}")
-                                st.caption(f"{year} · 🧩 {piezas} piezas · 🎁 {condition}")
-                                if storage:
-                                    detalle = f"🏠 {storage}"
-                                    if storage_box and int(storage_box) != 0:
-                                        detalle += f" · 📦 Caja {storage_box}"
-                                    st.caption(detalle)
-                                if image_url:
-                                    st.image(image_url, width=200)
-                                st.markdown("---")
+                        # Mantener solo las columnas útiles
+                        columnas = ["set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
+                        columnas_presentes = [c for c in columnas if c in df.columns]
+                        df = df[columnas_presentes]
+
+                        # Mostrar la tabla
+                        st.dataframe(
+                            df,
+                            use_container_width=True,
+                            hide_index=True
+                        )
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

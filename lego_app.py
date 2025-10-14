@@ -100,7 +100,7 @@ with tab1:
 # TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
 with tab2:
-    accion = st.radio("Acción", ["Alta", "Baja", "Actualización"], horizontal=True)
+    accion = st.radio("Acción", ["Alta", "Baja", "Actualizacion"], horizontal=True)
     st.divider()
 
     set_number = st.text_input("Número de set")

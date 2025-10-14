@@ -30,7 +30,7 @@ st.caption("Consulta y administra tu colección LEGO")
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 
-tab1, tab2 = st.tabs(["🔍 Buscar", "⚙️ Administrar"])
+tab1, tab2 = st.tabs(["Buscar", "Administrar"])
 
 # ============================================================
 # TAB 1: BUSCAR EN CATÁLOGO
@@ -84,10 +84,10 @@ with tab1:
                                 if image_url:
                                     st.markdown(f"[🖼️ Imagen del set]({image_url})")
 
+                                # 📘 Manuales con índice
                                 if manuals:
-                                    st.markdown("**📘 Manuales:** " + " · ".join(
-                                        [f"[Ver]({m})" for m in manuals]
-                                    ))
+                                    links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
+                                    st.markdown("**📘 Manuales:** " + " · ".join(links))
 
                                 if minifigs:
                                     figs = ", ".join([f"{f['minifig_name']} ({f['minifig_number']})" for f in minifigs])

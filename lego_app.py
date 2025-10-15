@@ -3,7 +3,7 @@ import requests
 import re
 import json
 from datetime import datetime
-import pandas as pd  # 👈 para mostrar los resultados en tabla
+import pandas as pd
 
 # ------------------------------------------------------------
 # CONVERTIR LINKS DE GOOGLE DRIVE
@@ -31,7 +31,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
-LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
+LAMBDA_SEARCH_FILTER = "https://tu-nueva-url.amazonaws.com/default/legoSearchFilter"  # 👈 nueva función para listado
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -105,6 +105,7 @@ with tab1:
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
+
 # ============================================================
 # TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
@@ -131,7 +132,6 @@ with tab2:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
 
-            # 🔹 Separar minifigs en dos listas
             minifigs_names = []
             minifigs_numbers = []
             for line in minifigs.splitlines():
@@ -144,7 +144,6 @@ with tab2:
 
             payload = {"accion": accion.lower()}
 
-            # ALTA
             if accion == "Alta":
                 payload["lego"] = {
                     "set_number": set_number_int,
@@ -163,12 +162,8 @@ with tab2:
                     "tags": tags_list,
                     "created_at": datetime.utcnow().isoformat()
                 }
-
-            # BAJA
             elif accion == "Baja":
                 payload["set_number"] = set_number_int
-
-            # ACTUALIZACIÓN
             else:
                 campos = {
                     "name": name,
@@ -190,53 +185,39 @@ with tab2:
                 payload["set_number"] = set_number_int
                 payload["campos"] = campos_filtrados
 
-            # Enviar solicitud a Lambda
             r = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
             if r.status_code == 200:
                 st.success(r.json().get("mensaje", "Operación completada."))
             else:
                 st.error(f"Error {r.status_code}: {r.text}")
-
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
+
 
 # ============================================================
 # TAB 3: LISTADO POR TEMA (usando legoSearchFilter)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
-
     tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
 
     if st.button("Mostrar sets"):
         try:
-            # 🔹 Empaquetar exactamente como tu Lambda espera
-            #payload = json.dumps({"body": json.dumps({"tema": tema})})
-            payload = {"body": json.dumps({"tema": tema})}
+            # 🔹 Construir payload exactamente como la Lambda lo espera
+            data = {"tema": tema}
+            payload = json.dumps({"body": json.dumps(data)})
+            headers = {"Content-Type": "application/json"}
+
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(
-                    LAMBDA_SEARCH_FILTER,
-                    data=payload,
-                    headers={"Content-Type": "application/json"},
-                    timeout=40
-                )
+                r = requests.post(LAMBDA_SEARCH_FILTER, data=payload, headers=headers, timeout=40)
 
                 if r.status_code == 200:
-                    response_json = r.json()              # 1️⃣ Primer JSON
-                    body_raw = response_json.get("body")  # 2️⃣ Obtenemos el body
+                    data = r.json()
+                    body = data.get("body")
+                    if isinstance(body, str):
+                        data = json.loads(body)
 
-                    # 3️⃣ Si el body viene como string JSON, lo decodificamos
-                    if isinstance(body_raw, str):
-                        try:
-                            body_data = json.loads(body_raw)
-                        except json.JSONDecodeError:
-                            st.error("Error al decodificar el cuerpo de la respuesta.")
-                            body_data = {}
-                    else:
-                        body_data = body_raw or {}
-
-                    resultados = body_data.get("resultados", [])
-
+                    resultados = data.get("resultados", [])
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
@@ -244,23 +225,15 @@ with tab3:
                         columnas = ["set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
+                        df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**")
 
-                        # Formato: negritas en número de set
-                        df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**" if pd.notna(x) else "")
-
-                        st.data_editor(
-                            df,
-                            use_container_width=True,
-                            hide_index=True,
-                            column_config={
-                                "set_number": st.column_config.TextColumn("Número de Set", width="small")
-                            },
-                            disabled=True
-                        )
+                        st.data_editor(df, use_container_width=True, hide_index=True, disabled=True)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
+
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
+
 
 # ------------------------------------------------------------
 # PIE

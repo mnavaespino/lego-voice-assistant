@@ -211,7 +211,7 @@ with tab3:
             headers = {"Content-Type": "application/json"}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, headers=headers, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, data=payload, headers=headers, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()

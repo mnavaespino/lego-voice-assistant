@@ -31,6 +31,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
+LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -200,7 +201,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (ahora simplificado tipo tabla)
+# TAB 3: LISTADO POR TEMA (usando legoSearchFilter)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -209,13 +210,15 @@ with tab3:
 
     if st.button("Mostrar sets"):
         try:
-            pregunta = f"Muéstrame todos los sets del tema {tema}"
+            payload = {"body": json.dumps({"tema": tema})}  # 👈 estructura exacta para tu Lambda
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, timeout=40)
                 if r.status_code == 200:
                     data = r.json()
                     body = data.get("body")
+
+                    # Convertir el JSON interno si viene como string
                     if isinstance(body, str):
                         data = json.loads(body)
 
@@ -223,19 +226,23 @@ with tab3:
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
-                        # Convertir los resultados a DataFrame
                         df = pd.DataFrame(resultados)
-
-                        # Mantener solo las columnas útiles
                         columnas = ["set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
 
-                        # Mostrar la tabla
-                        st.dataframe(
+                        # Formato: negritas en número de set
+                        df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**" if pd.notna(x) else "")
+
+                        # Mostrar tabla moderna
+                        st.data_editor(
                             df,
                             use_container_width=True,
-                            hide_index=True
+                            hide_index=True,
+                            column_config={
+                                "set_number": st.column_config.TextColumn("Número de Set", width="small")
+                            },
+                            disabled=True
                         )
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

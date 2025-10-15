@@ -205,6 +205,9 @@ with tab3:
         try:
             # 🔹 Construir payload exactamente como la Lambda lo espera
             data = {"tema": tema}
+        
+            
+            
             payload = json.dumps({"body": json.dumps(data)})
             headers = {"Content-Type": "application/json"}
 

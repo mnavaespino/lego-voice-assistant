@@ -31,7 +31,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
-LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 nueva función para listado
+LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 función para listado
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -204,20 +204,20 @@ with tab3:
     if st.button("Mostrar sets"):
         try:
             # 🔹 Construir payload exactamente como la Lambda lo espera
-            data = {"tema": tema}
-        
-            json={"pregunta": pregunta}
-            
-            #payload = json.dumps({"body": json.dumps(data)})
-           
+            payload = {
+                "body": json.dumps({"tema": tema})
+            }
+
             headers = {"Content-Type": "application/json"}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, data, headers=headers, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, headers=headers, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()
                     body = data.get("body")
+
+                    # 🔹 Si el body viene como texto JSON, lo convertimos a dict
                     if isinstance(body, str):
                         data = json.loads(body)
 
@@ -232,6 +232,7 @@ with tab3:
                         df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**")
 
                         st.data_editor(df, use_container_width=True, hide_index=True, disabled=True)
+
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
 

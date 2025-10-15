@@ -203,21 +203,17 @@ with tab3:
 
     if st.button("Mostrar sets"):
         try:
-            # 🔹 Construir payload exactamente como la Lambda lo espera
-            payload = {
-                "body": json.dumps({"tema": tema})
-            }
-
-            headers = {"Content-Type": "application/json"}
+            # 🔹 Construir el JSON exactamente como lo espera la Lambda
+            payload = {"body": json.dumps({"tema": tema})}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, data=payload, headers=headers, timeout=40)
+                # 👇 Usamos json=payload, que sí manda JSON crudo válido
+                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()
                     body = data.get("body")
 
-                    # 🔹 Si el body viene como texto JSON, lo convertimos a dict
                     if isinstance(body, str):
                         data = json.loads(body)
 
@@ -232,13 +228,11 @@ with tab3:
                         df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**")
 
                         st.data_editor(df, use_container_width=True, hide_index=True, disabled=True)
-
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
 
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
-
 
 # ------------------------------------------------------------
 # PIE

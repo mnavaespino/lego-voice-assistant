@@ -31,7 +31,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
-LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
+LAMBDA_SEARCH_FILTER = "https://tu-nueva-url.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -210,20 +210,33 @@ with tab3:
 
     if st.button("Mostrar sets"):
         try:
+            # 🔹 Empaquetar exactamente como tu Lambda espera
             payload = json.dumps({"body": json.dumps({"tema": tema})})
 
-
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, timeout=40)
+                r = requests.post(
+                    LAMBDA_SEARCH_FILTER,
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=40
+                )
+
                 if r.status_code == 200:
-                    data = r.json()
-                    body = data.get("body")
+                    response_json = r.json()              # 1️⃣ Primer JSON
+                    body_raw = response_json.get("body")  # 2️⃣ Obtenemos el body
 
-                    # Convertir el JSON interno si viene como string
-                    if isinstance(body, str):
-                        data = json.loads(body)
+                    # 3️⃣ Si el body viene como string JSON, lo decodificamos
+                    if isinstance(body_raw, str):
+                        try:
+                            body_data = json.loads(body_raw)
+                        except json.JSONDecodeError:
+                            st.error("Error al decodificar el cuerpo de la respuesta.")
+                            body_data = {}
+                    else:
+                        body_data = body_raw or {}
 
-                    resultados = data.get("resultados", [])
+                    resultados = body_data.get("resultados", [])
+
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
@@ -235,7 +248,6 @@ with tab3:
                         # Formato: negritas en número de set
                         df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**" if pd.notna(x) else "")
 
-                        # Mostrar tabla moderna
                         st.data_editor(
                             df,
                             use_container_width=True,

@@ -4,6 +4,7 @@ import re
 import json
 from datetime import datetime
 import pandas as pd
+import base64
 
 # ------------------------------------------------------------
 # CONVERTIR LINKS DE GOOGLE DRIVE
@@ -31,7 +32,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
-LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 función para listado
+LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -88,7 +89,7 @@ with tab1:
                                 st.caption(linea_detalle)
 
                                 if image_url:
-                                    st.markdown(f"[🖼️ Imagen del set]({image_url})")
+                                    st.image(image_url, width=250)
                                 if lego_web_url:
                                     st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
 
@@ -105,7 +106,6 @@ with tab1:
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
-
 # ============================================================
 # TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
@@ -121,7 +121,13 @@ with tab2:
     storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("Caja", min_value=0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
-    image_url = st.text_input("URL imagen", placeholder="https://drive.google.com/...")
+
+    # 👇 NUEVO: carga y vista previa de imagen
+    image_file = st.file_uploader("📷 Subir imagen del set (JPG o WebP)", type=["jpg", "jpeg", "webp"])
+    if image_file:
+        st.image(image_file, caption="Vista previa", width=250)
+
+    image_url = st.text_input("URL imagen (alternativa)", placeholder="https://drive.google.com/...")
     lego_web_url = st.text_input("URL página LEGO (opcional)", placeholder="https://www.lego.com/...")
     manuals = st.text_area("Manuales (uno por línea)")
     minifigs = st.text_area("Minifigs (formato: número: nombre por línea, ej. SW1378: Ackbar Trooper)")
@@ -132,8 +138,7 @@ with tab2:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
 
-            minifigs_names = []
-            minifigs_numbers = []
+            minifigs_names, minifigs_numbers = [], []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
                 if len(p) == 2:
@@ -141,11 +146,18 @@ with tab2:
                     minifigs_numbers.append(p[0])
 
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
-
             payload = {"accion": accion.lower()}
 
+            # Si hay imagen subida, convertir a base64
+            imagen_base64 = None
+            if image_file is not None:
+                bytes_data = image_file.read()
+                mime_type = "image/webp" if image_file.type == "image/webp" else "image/jpeg"
+                encoded = base64.b64encode(bytes_data).decode("utf-8")
+                imagen_base64 = f"data:{mime_type};base64,{encoded}"
+
             if accion == "Alta":
-                payload["lego"] = {
+                lego_data = {
                     "set_number": set_number_int,
                     "name": name,
                     "theme": theme,
@@ -162,9 +174,14 @@ with tab2:
                     "tags": tags_list,
                     "created_at": datetime.utcnow().isoformat()
                 }
+                if imagen_base64:
+                    lego_data["imagen_base64"] = imagen_base64
+                payload["lego"] = lego_data
+
             elif accion == "Baja":
                 payload["set_number"] = set_number_int
-            else:
+
+            else:  # Actualización
                 campos = {
                     "name": name,
                     "theme": theme,
@@ -181,18 +198,29 @@ with tab2:
                     "tags": tags_list,
                     "modified_at": datetime.utcnow().isoformat()
                 }
+                if imagen_base64:
+                    campos["imagen_base64"] = imagen_base64
                 campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
                 payload["set_number"] = set_number_int
                 payload["campos"] = campos_filtrados
 
-            r = requests.post(LAMBDA_ADMIN, json=payload, timeout=30)
+            r = requests.post(LAMBDA_ADMIN, json=payload, timeout=60)
             if r.status_code == 200:
-                st.success(r.json().get("mensaje", "Operación completada."))
+                try:
+                    data = r.json()
+                    if isinstance(data.get("body"), str):
+                        data = json.loads(data["body"])
+                    mensaje = data.get("mensaje", "Operación completada.")
+                    image_url_result = data.get("image_url")
+                    if image_url_result:
+                        st.image(image_url_result, width=300)
+                    st.success(mensaje)
+                except Exception:
+                    st.success("Operación completada.")
             else:
                 st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
-
 
 # ============================================================
 # TAB 3: LISTADO POR TEMA (usando legoSearchFilter)
@@ -203,20 +231,14 @@ with tab3:
 
     if st.button("Mostrar sets"):
         try:
-
             headers = {"Content-Type": "application/json"}
-
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                # 👇 Se usa data= para que no meta otra capa extra
                 r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, headers=headers, timeout=40)
-
                 if r.status_code == 200:
                     data = r.json()
                     body = data.get("body")
-
                     if isinstance(body, str):
                         data = json.loads(body)
-
                     resultados = data.get("resultados", [])
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
@@ -226,11 +248,9 @@ with tab3:
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
                         df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**")
-
                         st.data_editor(df, use_container_width=True, hide_index=True, disabled=True)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
-
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
 

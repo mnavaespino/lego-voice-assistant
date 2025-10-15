@@ -211,8 +211,8 @@ with tab3:
     if st.button("Mostrar sets"):
         try:
             # 🔹 Empaquetar exactamente como tu Lambda espera
-            payload = json.dumps({"body": json.dumps({"tema": tema})})
-
+            #payload = json.dumps({"body": json.dumps({"tema": tema})})
+            payload = {"body": json.dumps({"tema": tema})}
             with st.spinner(f"Obteniendo sets de {tema}..."):
                 r = requests.post(
                     LAMBDA_SEARCH_FILTER,

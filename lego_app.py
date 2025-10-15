@@ -31,7 +31,7 @@ st.caption("Consulta y administra tu colección LEGO")
 
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
-LAMBDA_SEARCH_FILTER = "https://tu-nueva-url.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
+LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"  # 👈 tu nueva función
 
 # ------------------------------------------------------------
 # PESTAÑAS

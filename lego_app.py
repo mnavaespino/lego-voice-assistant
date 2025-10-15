@@ -203,16 +203,12 @@ with tab3:
 
     if st.button("Mostrar sets"):
         try:
-            # 🔹 Enviar exactamente lo que tu Lambda espera (una sola capa de body)
-            payload = {
-                "body": json.dumps({"tema": tema})
-            }
 
             headers = {"Content-Type": "application/json"}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
                 # 👇 Se usa data= para que no meta otra capa extra
-                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, headers=headers, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, headers=headers, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()

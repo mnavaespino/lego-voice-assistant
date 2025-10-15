@@ -206,14 +206,14 @@ with tab3:
             # 🔹 Construir payload exactamente como la Lambda lo espera
             data = {"tema": tema}
         
-            
+            json={"pregunta": pregunta}
             
             #payload = json.dumps({"body": json.dumps(data)})
-            payload = {"body": json.dumps(data)}
+           
             headers = {"Content-Type": "application/json"}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, data=payload, headers=headers, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, data, headers=headers, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()

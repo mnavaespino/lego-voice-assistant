@@ -204,7 +204,8 @@ with tab3:
     if st.button("Mostrar sets"):
         try:
             # 🔹 Construir el JSON exactamente como lo espera la Lambda
-            payload = {"body": json.dumps({"tema": tema})}
+            #payload = {"body": json.dumps({"tema": tema})}
+            payload = json.dumps({"tema": tema})
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
                 # 👇 Usamos json=payload, que sí manda JSON crudo válido

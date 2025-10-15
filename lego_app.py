@@ -208,7 +208,8 @@ with tab3:
         
             
             
-            payload = json.dumps({"body": json.dumps(data)})
+            #payload = json.dumps({"body": json.dumps(data)})
+            payload = data
             headers = {"Content-Type": "application/json"}
 
             with st.spinner(f"Obteniendo sets de {tema}..."):

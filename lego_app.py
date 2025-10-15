@@ -212,7 +212,7 @@ with tab3:
 
             with st.spinner(f"Obteniendo sets de {tema}..."):
                 # 👇 Se usa data= para que no meta otra capa extra
-                r = requests.post(LAMBDA_SEARCH_FILTER, data=json.dumps(payload), headers=headers, timeout=40)
+                r = requests.post(LAMBDA_SEARCH_FILTER, json=payload, headers=headers, timeout=40)
 
                 if r.status_code == 200:
                     data = r.json()

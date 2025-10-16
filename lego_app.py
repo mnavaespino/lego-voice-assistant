@@ -112,11 +112,11 @@ with tab2:
     theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
     year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("Piezas", min_value=0, step=10)
-    storage = st.selectbox("Ubicación", ["Cobalto", "San Jeronimo"])
+    storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("Caja", min_value=0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
 
-    # 📸 Nuevo campo: carga de imagen local
+    # 📸 Carga local de imagen
     imagen_archivo = None
     if accion in ["Alta", "Actualizacion"]:
         imagen_archivo = st.file_uploader("📸 Selecciona imagen del set", type=["jpg", "jpeg", "webp"])
@@ -234,11 +234,27 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         df = pd.DataFrame(resultados)
-                        columnas = ["set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
+                        columnas = ["image_url", "set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
-                        df["set_number"] = df["set_number"].apply(lambda x: f"**{x}**")
-                        st.data_editor(df, use_container_width=True, hide_index=True, disabled=True)
+
+                        st.write("### Resultados:")
+                        for _, row in df.iterrows():
+                            with st.container(border=True):
+                                cols = st.columns([1, 3])
+                                image_url = row.get("image_url", "")
+                                if image_url:
+                                    cols[0].image(image_url, width=100)
+                                else:
+                                    cols[0].markdown("*(sin imagen)*")
+
+                                info = f"""
+                                **{row.get('set_number', '')} · {row.get('name', '')}**  
+                                {row.get('theme', tema)} · {row.get('year', '')}  
+                                🧩 {row.get('pieces', '')} piezas · 🎁 {row.get('condition', '')}  
+                                🏠 {row.get('storage', '')} · 📦 Caja {row.get('storage_box', '')}
+                                """
+                                cols[1].markdown(info)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

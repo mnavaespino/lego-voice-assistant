@@ -9,7 +9,7 @@ import pandas as pd
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
 # ------------------------------------------------------------
-st.set_page_config(page_title="LEGO IA", page_icon="🧱", layout="centered")
+st.set_page_config(page_title="LEGO IA", page_icon="🧱", layout="wide")
 st.title("🧱 LEGO IA")
 st.caption("Consulta y administra tu colección LEGO")
 
@@ -112,7 +112,7 @@ with tab2:
     theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
     year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("Piezas", min_value=0, step=10)
-    storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
+    storage = st.selectbox("Ubicación", ["Cobalto", "San Jeronimo"])
     storage_box = st.number_input("Caja", min_value=0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
 
@@ -212,10 +212,10 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA
+# TAB 3: LISTADO POR TEMA (compacto)
 # ============================================================
 with tab3:
-    st.subheader("📦 Listado de sets por tema")
+    st.subheader("📦 Listado de sets por tema (vista compacta)")
     tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
 
     if st.button("Mostrar sets"):
@@ -238,23 +238,21 @@ with tab3:
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
 
-                        st.write("### Resultados:")
-                        for _, row in df.iterrows():
-                            with st.container(border=True):
-                                cols = st.columns([1, 3])
-                                image_url = row.get("image_url", "")
-                                if image_url:
-                                    cols[0].image(image_url, width=100)
-                                else:
-                                    cols[0].markdown("*(sin imagen)*")
+                        st.markdown("### Resultados:")
 
-                                info = f"""
-                                **{row.get('set_number', '')} · {row.get('name', '')}**  
-                                {row.get('theme', tema)} · {row.get('year', '')}  
-                                🧩 {row.get('pieces', '')} piezas · 🎁 {row.get('condition', '')}  
-                                🏠 {row.get('storage', '')} · 📦 Caja {row.get('storage_box', '')}
-                                """
-                                cols[1].markdown(info)
+                        for _, row in df.iterrows():
+                            cols = st.columns([0.6, 5])
+                            image_url = row.get("image_url", "")
+                            if image_url:
+                                cols[0].image(image_url, width=80)
+                            else:
+                                cols[0].markdown("*(sin imagen)*")
+
+                            texto = f"**{row.get('set_number', '')} · {row.get('name', '')}** — {row.get('year', '')} · "
+                            texto += f"🧩 {row.get('pieces', '')} piezas · 🎁 {row.get('condition', '')} · "
+                            texto += f"🏠 {row.get('storage', '')} (Caja {row.get('storage_box', '')})"
+                            cols[1].markdown(texto)
+                            st.markdown("<hr style='margin:4px 0;'>", unsafe_allow_html=True)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

@@ -5,7 +5,7 @@ import json
 import base64
 from datetime import datetime
 import pandas as pd
-import streamlit.components.v1 as components  # 👈 render HTML y JS
+import streamlit.components.v1 as components  # 👈 para renderizar HTML con DataTables
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -202,7 +202,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (con ordenamiento)
+# TAB 3: LISTADO POR TEMA (con ordenamiento + miniaturas)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -224,15 +224,21 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         df = pd.DataFrame(resultados)
-                        df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
 
-                        # Convertir DataFrame a HTML con DataTables
+                        # Crear columna con miniatura
+                        df["imagen"] = df.get("thumb_url", df.get("image_url", "")).apply(
+                            lambda x: f'<img src="{x}" width="100">' if isinstance(x, str) and x else ""
+                        )
+
+                        # Seleccionar columnas relevantes
+                        columnas = ["imagen", "set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
+                        df = df[[c for c in columnas if c in df.columns]]
+
                         html_table = df.to_html(
-                            classes="display compact stripe",
-                            index=False,
                             escape=False,
+                            index=False,
+                            classes="display compact stripe",
                             border=0,
-                            justify="left"
                         )
 
                         html = f"""
@@ -240,27 +246,31 @@ with tab3:
                         <head>
                         <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
                         <style>
-                            img {{ width: 100px; border-radius: 8px; }}
                             body {{ font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }}
+                            img {{ border-radius: 6px; }}
                             table.dataTable thead th {{
-                                background-color: #f0f0f0;
+                                background-color: #f8f8f8;
                                 font-weight: 600;
                                 border-bottom: 2px solid #ddd;
                             }}
                             table.dataTable tbody tr:hover {{ background-color: #f9f9f9; }}
+                            .dataTables_wrapper .dataTables_filter input {{
+                                border-radius: 6px;
+                                border: 1px solid #ccc;
+                                padding: 4px 8px;
+                            }}
                         </style>
                         </head>
                         <body>
-                        <table id="legoTable" class="display compact">
                         {html_table}
-                        </table>
                         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
                         <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
                         <script>
                             $(document).ready(function() {{
-                                $('#legoTable').DataTable({{
+                                $('table.display').DataTable({{
                                     pageLength: 20,
-                                    order: [[1, 'asc']]
+                                    order: [[1, 'asc']],
+                                    columnDefs: [{{ orderable: false, targets: 0 }}]
                                 }});
                             }});
                         </script>

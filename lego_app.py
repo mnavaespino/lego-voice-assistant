@@ -35,7 +35,7 @@ def convertir_a_base64(archivo):
 tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
-# TAB 1: BUSCAR EN CATÁLOGO
+# TAB 1: BUSCAR EN CATÁLOGO (Diseño moderno tipo galería)
 # ============================================================
 with tab1:
     pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
@@ -55,48 +55,76 @@ with tab1:
                             data = json.loads(body)
 
                         respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
-                        st.markdown(f"**{respuesta}**")
+                        st.markdown(f"### 💬 {respuesta}")
 
                         resultados = data.get("resultados", [])
-                        for item in resultados:
-                            nombre = item.get("name", "Sin nombre")
-                            set_number = item.get("set_number", "")
-                            year = item.get("year", "")
-                            theme = item.get("theme", "")
-                            piezas = item.get("pieces", "")
-                            storage = item.get("storage", "")
-                            storage_box = item.get("storage_box", "")
-                            condition = item.get("condition", "")
-                            image_url = item.get("image_url", "")
-                            manuals = item.get("manuals", [])
-                            minifigs_names = item.get("minifigs_names", [])
-                            minifigs_numbers = item.get("minifigs_numbers", [])
-                            lego_web_url = item.get("lego_web_url", "")
+                        if not resultados:
+                            st.info("No se encontraron resultados.")
+                        else:
+                            df = pd.DataFrame(resultados)
+                            df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
 
-                            with st.container(border=True):
-                                st.markdown(f"### {set_number} · {nombre}")
-                                st.caption(f"{theme} · {year}")
+                            html = """
+                            <html><head>
+                            <style>
+                                body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
+                                .set-card {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 16px;
+                                    padding: 12px 16px;
+                                    border-radius: 12px;
+                                    border: 1px solid #e0e0e0;
+                                    margin-bottom: 14px;
+                                    background-color: #fafafa;
+                                    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+                                    transition: transform 0.1s ease-in-out;
+                                }
+                                .set-card:hover { transform: scale(1.01); background-color: #fff; }
+                                .set-img {
+                                    width: 120px;
+                                    height: auto;
+                                    border-radius: 8px;
+                                    object-fit: contain;
+                                    background-color: #fff;
+                                    border: 1px solid #ddd;
+                                }
+                                .set-info { flex-grow: 1; }
+                                .set-title {
+                                    font-weight: 600;
+                                    font-size: 16px;
+                                    color: #222;
+                                    margin-bottom: 4px;
+                                }
+                                .set-sub {
+                                    color: #666;
+                                    font-size: 13px;
+                                    margin-bottom: 4px;
+                                }
+                                .set-detail { font-size: 13px; color: #444; }
+                            </style></head><body>
+                            """
 
-                                linea_detalle = f"🧩 {piezas} piezas · 🏠 {storage}"
-                                if storage_box and int(storage_box) != 0:
-                                    linea_detalle += f" · 📦 Caja {storage_box}"
-                                linea_detalle += f" · 🎁 {condition}"
-                                st.caption(linea_detalle)
+                            for _, row in df.iterrows():
+                                imagen = row.get("imagen", "")
+                                image_html = (
+                                    f'<img src="{imagen}" class="set-img">'
+                                    if imagen
+                                    else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
+                                )
+                                html += f"""
+                                <div class="set-card">
+                                    {image_html}
+                                    <div class="set-info">
+                                        <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
+                                        <div class="set-sub">{row.get("theme", "")} · {row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
+                                        <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                    </div>
+                                </div>
+                                """
 
-                                if image_url:
-                                    st.image(image_url, width=250)
-                                if lego_web_url:
-                                    st.markdown(f"[🌐 Página oficial LEGO]({lego_web_url})")
-
-                                if manuals:
-                                    links = [f"[{i+1} · Ver]({m})" for i, m in enumerate(manuals)]
-                                    st.markdown("**📘 Manuales:** " + " · ".join(links))
-
-                                if minifigs_names and minifigs_numbers:
-                                    figs = ", ".join(
-                                        [f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)]
-                                    )
-                                    st.markdown(f"**🧍 Minifigs:** {figs}")
+                            html += "</body></html>"
+                            components.html(html, height=800, scrolling=True)
 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")

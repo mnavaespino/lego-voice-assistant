@@ -5,7 +5,7 @@ import json
 import base64
 from datetime import datetime
 import pandas as pd
-import streamlit.components.v1 as components  # 👈 para renderizar HTML puro
+import streamlit.components.v1 as components  # 👈 para renderizar HTML moderno
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -211,7 +211,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (render con HTML real)
+# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -235,55 +235,67 @@ with tab3:
                         df = pd.DataFrame(resultados)
                         df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
 
-                        # Construimos HTML real
                         html = """
-                        <html>
-                        <head>
+                        <html><head>
                         <style>
-                            table { width: 100%; border-collapse: collapse; font-size: 14px; }
-                            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-                            th { background-color: #f0f0f0; }
-                            img { border-radius: 6px; }
-                        </style>
-                        </head>
-                        <body>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Imagen</th>
-                                    <th>Set</th>
-                                    <th>Nombre</th>
-                                    <th>Año</th>
-                                    <th>Piezas</th>
-                                    <th>Condición</th>
-                                    <th>Ubicación</th>
-                                    <th>Caja</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
+                            .set-card {
+                                display: flex;
+                                align-items: center;
+                                gap: 16px;
+                                padding: 12px 16px;
+                                border-radius: 12px;
+                                border: 1px solid #e0e0e0;
+                                margin-bottom: 14px;
+                                background-color: #fafafa;
+                                box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+                                transition: transform 0.1s ease-in-out;
+                            }
+                            .set-card:hover { transform: scale(1.01); background-color: #fff; }
+                            .set-img {
+                                width: 120px;
+                                height: auto;
+                                border-radius: 8px;
+                                object-fit: contain;
+                                background-color: #fff;
+                                border: 1px solid #ddd;
+                            }
+                            .set-info { flex-grow: 1; }
+                            .set-title {
+                                font-weight: 600;
+                                font-size: 16px;
+                                color: #222;
+                                margin-bottom: 4px;
+                            }
+                            .set-sub {
+                                color: #666;
+                                font-size: 13px;
+                                margin-bottom: 4px;
+                            }
+                            .set-detail { font-size: 13px; color: #444; }
+                        </style></head><body>
                         """
+
                         for _, row in df.iterrows():
                             imagen = row.get("imagen", "")
                             image_html = (
-                                f'<img src="{imagen}" width="80">' if imagen
-                                else '<div style="width:80px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
+                                f'<img src="{imagen}" class="set-img">'
+                                if imagen
+                                else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                             )
                             html += f"""
-                                <tr>
-                                    <td>{image_html}</td>
-                                    <td style="font-weight:bold;">{row.get("set_number", "")}</td>
-                                    <td>{row.get("name", "")}</td>
-                                    <td>{row.get("year", "")}</td>
-                                    <td>{row.get("pieces", "")}</td>
-                                    <td>{row.get("condition", "")}</td>
-                                    <td>{row.get("storage", "")}</td>
-                                    <td>{row.get("storage_box", "")}</td>
-                                </tr>
+                            <div class="set-card">
+                                {image_html}
+                                <div class="set-info">
+                                    <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
+                                    <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
+                                    <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                </div>
+                            </div>
                             """
-                        html += "</tbody></table></body></html>"
 
-                        # 👇 Renderizamos HTML completo
-                        components.html(html, height=600, scrolling=True)
+                        html += "</body></html>"
+                        components.html(html, height=750, scrolling=True)
 
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

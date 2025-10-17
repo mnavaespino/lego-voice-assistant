@@ -116,7 +116,6 @@ with tab2:
     storage_box = st.number_input("Caja", min_value=0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
 
-    # 📸 Carga local de imagen
     imagen_archivo = None
     if accion in ["Alta", "Actualizacion"]:
         imagen_archivo = st.file_uploader("📸 Selecciona imagen del set", type=["jpg", "jpeg", "webp"])
@@ -142,7 +141,6 @@ with tab2:
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
 
             payload = {"accion": accion.lower()}
-
             imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
 
             if accion == "Alta":
@@ -212,7 +210,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA
+# TAB 3: LISTADO POR TEMA (tabla con miniaturas)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -234,27 +232,57 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         df = pd.DataFrame(resultados)
-                        columnas = ["image_url", "set_number", "name", "year", "pieces", "condition", "storage", "storage_box"]
+
+                        # Si existe thumb_url, lo usamos; si no, image_url
+                        df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
+
+                        columnas = [
+                            "imagen", "set_number", "name", "year",
+                            "pieces", "condition", "storage", "storage_box"
+                        ]
                         columnas_presentes = [c for c in columnas if c in df.columns]
                         df = df[columnas_presentes]
 
-                        st.write("### Resultados:")
-                        for _, row in df.iterrows():
-                            with st.container(border=True):
-                                cols = st.columns([1, 3])
-                                image_url = row.get("image_url", "")
-                                if image_url:
-                                    cols[0].image(image_url, width=100)
-                                else:
-                                    cols[0].markdown("*(sin imagen)*")
+                        html = """
+                        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                            <thead>
+                                <tr style="background-color:#f0f0f0; text-align:left;">
+                                    <th style="padding:8px;">Imagen</th>
+                                    <th style="padding:8px;">Set</th>
+                                    <th style="padding:8px;">Nombre</th>
+                                    <th style="padding:8px;">Año</th>
+                                    <th style="padding:8px;">Piezas</th>
+                                    <th style="padding:8px;">Condición</th>
+                                    <th style="padding:8px;">Ubicación</th>
+                                    <th style="padding:8px;">Caja</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                        """
 
-                                info = f"""
-                                **{row.get('set_number', '')} · {row.get('name', '')}**  
-                                {row.get('theme', tema)} · {row.get('year', '')}  
-                                🧩 {row.get('pieces', '')} piezas · 🎁 {row.get('condition', '')}  
-                                🏠 {row.get('storage', '')} · 📦 Caja {row.get('storage_box', '')}
-                                """
-                                cols[1].markdown(info)
+                        for _, row in df.iterrows():
+                            image_html = (
+                                f'<img src="{row.get("imagen", "")}" width="80" style="border-radius:6px;">'
+                                if row.get("imagen")
+                                else '<div style="width:80px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
+                            )
+
+                            html += f"""
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:8px;">{image_html}</td>
+                                    <td style="padding:8px;font-weight:bold;">{row.get("set_number", "")}</td>
+                                    <td style="padding:8px;">{row.get("name", "")}</td>
+                                    <td style="padding:8px;">{row.get("year", "")}</td>
+                                    <td style="padding:8px;">{row.get("pieces", "")}</td>
+                                    <td style="padding:8px;">{row.get("condition", "")}</td>
+                                    <td style="padding:8px;">{row.get("storage", "")}</td>
+                                    <td style="padding:8px;">{row.get("storage_box", "")}</td>
+                                </tr>
+                            """
+
+                        html += "</tbody></table>"
+                        st.markdown(html, unsafe_allow_html=True)
+
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

@@ -233,50 +233,64 @@ with tab3:
                     else:
                         df = pd.DataFrame(resultados)
 
-                        # Si existe thumb_url, lo usamos; si no, image_url
-                        df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
+                        # Usar thumb_url si existe, si no image_url
+                        if "thumb_url" in df.columns:
+                            df["imagen"] = df["thumb_url"]
+                        else:
+                            df["imagen"] = df["image_url"]
 
-                        columnas = [
-                            "imagen", "set_number", "name", "year",
-                            "pieces", "condition", "storage", "storage_box"
-                        ]
-                        columnas_presentes = [c for c in columnas if c in df.columns]
-                        df = df[columnas_presentes]
-
+                        # Crear tabla HTML renderizada
                         html = """
-                        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                        <style>
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                font-size: 14px;
+                            }
+                            th, td {
+                                padding: 8px;
+                                text-align: left;
+                                border-bottom: 1px solid #eee;
+                            }
+                            th {
+                                background-color: #f0f0f0;
+                            }
+                            img {
+                                border-radius: 6px;
+                            }
+                        </style>
+                        <table>
                             <thead>
-                                <tr style="background-color:#f0f0f0; text-align:left;">
-                                    <th style="padding:8px;">Imagen</th>
-                                    <th style="padding:8px;">Set</th>
-                                    <th style="padding:8px;">Nombre</th>
-                                    <th style="padding:8px;">Año</th>
-                                    <th style="padding:8px;">Piezas</th>
-                                    <th style="padding:8px;">Condición</th>
-                                    <th style="padding:8px;">Ubicación</th>
-                                    <th style="padding:8px;">Caja</th>
+                                <tr>
+                                    <th>Imagen</th>
+                                    <th>Set</th>
+                                    <th>Nombre</th>
+                                    <th>Año</th>
+                                    <th>Piezas</th>
+                                    <th>Condición</th>
+                                    <th>Ubicación</th>
+                                    <th>Caja</th>
                                 </tr>
                             </thead>
                             <tbody>
                         """
 
                         for _, row in df.iterrows():
+                            imagen = row.get("imagen", "")
                             image_html = (
-                                f'<img src="{row.get("imagen", "")}" width="80" style="border-radius:6px;">'
-                                if row.get("imagen")
+                                f'<img src="{imagen}" width="80">' if imagen
                                 else '<div style="width:80px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                             )
-
                             html += f"""
-                                <tr style="border-bottom:1px solid #eee;">
-                                    <td style="padding:8px;">{image_html}</td>
-                                    <td style="padding:8px;font-weight:bold;">{row.get("set_number", "")}</td>
-                                    <td style="padding:8px;">{row.get("name", "")}</td>
-                                    <td style="padding:8px;">{row.get("year", "")}</td>
-                                    <td style="padding:8px;">{row.get("pieces", "")}</td>
-                                    <td style="padding:8px;">{row.get("condition", "")}</td>
-                                    <td style="padding:8px;">{row.get("storage", "")}</td>
-                                    <td style="padding:8px;">{row.get("storage_box", "")}</td>
+                                <tr>
+                                    <td>{image_html}</td>
+                                    <td style="font-weight:bold;">{row.get("set_number", "")}</td>
+                                    <td>{row.get("name", "")}</td>
+                                    <td>{row.get("year", "")}</td>
+                                    <td>{row.get("pieces", "")}</td>
+                                    <td>{row.get("condition", "")}</td>
+                                    <td>{row.get("storage", "")}</td>
+                                    <td>{row.get("storage_box", "")}</td>
                                 </tr>
                             """
 

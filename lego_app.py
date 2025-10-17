@@ -62,7 +62,8 @@ with tab1:
                             st.info("No se encontraron resultados.")
                         else:
                             df = pd.DataFrame(resultados)
-                            df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
+                            df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+                            df["image_full"] = df.get("image_url", "")
 
                             html = """
                             <html><head>
@@ -106,10 +107,11 @@ with tab1:
                             """
 
                             for _, row in df.iterrows():
-                                imagen = row.get("imagen", "")
+                                thumb = row.get("thumb", "")
+                                full = row.get("image_full", "")
                                 image_html = (
-                                    f'<img src="{imagen}" class="set-img">'
-                                    if imagen
+                                    f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+                                    if thumb or full
                                     else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                                 )
                                 html += f"""
@@ -239,7 +241,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería)
+# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería con enlace)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -261,7 +263,8 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         df = pd.DataFrame(resultados)
-                        df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
+                        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+                        df["image_full"] = df.get("image_url", "")
 
                         html = """
                         <html><head>
@@ -305,10 +308,11 @@ with tab3:
                         """
 
                         for _, row in df.iterrows():
-                            imagen = row.get("imagen", "")
+                            thumb = row.get("thumb", "")
+                            full = row.get("image_full", "")
                             image_html = (
-                                f'<img src="{imagen}" class="set-img">'
-                                if imagen
+                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+                                if thumb or full
                                 else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                             )
                             html += f"""

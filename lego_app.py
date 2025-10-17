@@ -5,6 +5,7 @@ import json
 import base64
 from datetime import datetime
 import pandas as pd
+import streamlit.components.v1 as components  # 👈 para renderizar HTML puro
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -210,7 +211,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (tabla con miniaturas)
+# TAB 3: LISTADO POR TEMA (render con HTML real)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -232,33 +233,20 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         df = pd.DataFrame(resultados)
+                        df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
 
-                        # Usar thumb_url si existe, si no image_url
-                        if "thumb_url" in df.columns:
-                            df["imagen"] = df["thumb_url"]
-                        else:
-                            df["imagen"] = df["image_url"]
-
-                        # Crear tabla HTML renderizada
+                        # Construimos HTML real
                         html = """
+                        <html>
+                        <head>
                         <style>
-                            table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                font-size: 14px;
-                            }
-                            th, td {
-                                padding: 8px;
-                                text-align: left;
-                                border-bottom: 1px solid #eee;
-                            }
-                            th {
-                                background-color: #f0f0f0;
-                            }
-                            img {
-                                border-radius: 6px;
-                            }
+                            table { width: 100%; border-collapse: collapse; font-size: 14px; }
+                            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
+                            th { background-color: #f0f0f0; }
+                            img { border-radius: 6px; }
                         </style>
+                        </head>
+                        <body>
                         <table>
                             <thead>
                                 <tr>
@@ -274,7 +262,6 @@ with tab3:
                             </thead>
                             <tbody>
                         """
-
                         for _, row in df.iterrows():
                             imagen = row.get("imagen", "")
                             image_html = (
@@ -293,9 +280,10 @@ with tab3:
                                     <td>{row.get("storage_box", "")}</td>
                                 </tr>
                             """
+                        html += "</tbody></table></body></html>"
 
-                        html += "</tbody></table>"
-                        st.markdown(html, unsafe_allow_html=True)
+                        # 👇 Renderizamos HTML completo
+                        components.html(html, height=600, scrolling=True)
 
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

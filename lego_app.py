@@ -5,7 +5,7 @@ import json
 import base64
 from datetime import datetime
 import pandas as pd
-import streamlit.components.v1 as components  # 👈 para renderizar HTML moderno
+import streamlit.components.v1 as components  # 👈 render HTML y JS
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -192,18 +192,9 @@ with tab2:
 
             with st.spinner("Enviando datos a LEGO Admin..."):
                 r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
-                try:
-                    respuesta = r.json()
-                except:
-                    st.error(f"Error {r.status_code}: {r.text}")
-                    st.stop()
-
+                respuesta = r.json()
                 if r.status_code == 200:
-                    mensaje = respuesta.get("mensaje", "Operación completada.")
-                    image_url = respuesta.get("image_url")
-                    st.success(mensaje)
-                    if image_url:
-                        st.image(image_url, caption="Imagen subida a Firebase", width=250)
+                    st.success(respuesta.get("mensaje", "Operación completada."))
                 else:
                     st.error(f"Error {r.status_code}: {respuesta.get('error', r.text)}")
 
@@ -211,7 +202,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería)
+# TAB 3: LISTADO POR TEMA (con ordenamiento)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -235,68 +226,49 @@ with tab3:
                         df = pd.DataFrame(resultados)
                         df["imagen"] = df.get("thumb_url", df.get("image_url", ""))
 
-                        html = """
-                        <html><head>
+                        # Convertir DataFrame a HTML con DataTables
+                        html_table = df.to_html(
+                            classes="display compact stripe",
+                            index=False,
+                            escape=False,
+                            border=0,
+                            justify="left"
+                        )
+
+                        html = f"""
+                        <html>
+                        <head>
+                        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
                         <style>
-                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
-                            .set-card {
-                                display: flex;
-                                align-items: center;
-                                gap: 16px;
-                                padding: 12px 16px;
-                                border-radius: 12px;
-                                border: 1px solid #e0e0e0;
-                                margin-bottom: 14px;
-                                background-color: #fafafa;
-                                box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-                                transition: transform 0.1s ease-in-out;
-                            }
-                            .set-card:hover { transform: scale(1.01); background-color: #fff; }
-                            .set-img {
-                                width: 120px;
-                                height: auto;
-                                border-radius: 8px;
-                                object-fit: contain;
-                                background-color: #fff;
-                                border: 1px solid #ddd;
-                            }
-                            .set-info { flex-grow: 1; }
-                            .set-title {
+                            img {{ width: 100px; border-radius: 8px; }}
+                            body {{ font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }}
+                            table.dataTable thead th {{
+                                background-color: #f0f0f0;
                                 font-weight: 600;
-                                font-size: 16px;
-                                color: #222;
-                                margin-bottom: 4px;
-                            }
-                            .set-sub {
-                                color: #666;
-                                font-size: 13px;
-                                margin-bottom: 4px;
-                            }
-                            .set-detail { font-size: 13px; color: #444; }
-                        </style></head><body>
+                                border-bottom: 2px solid #ddd;
+                            }}
+                            table.dataTable tbody tr:hover {{ background-color: #f9f9f9; }}
+                        </style>
+                        </head>
+                        <body>
+                        <table id="legoTable" class="display compact">
+                        {html_table}
+                        </table>
+                        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+                        <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+                        <script>
+                            $(document).ready(function() {{
+                                $('#legoTable').DataTable({{
+                                    pageLength: 20,
+                                    order: [[1, 'asc']]
+                                }});
+                            }});
+                        </script>
+                        </body>
+                        </html>
                         """
 
-                        for _, row in df.iterrows():
-                            imagen = row.get("imagen", "")
-                            image_html = (
-                                f'<img src="{imagen}" class="set-img">'
-                                if imagen
-                                else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
-                            )
-                            html += f"""
-                            <div class="set-card">
-                                {image_html}
-                                <div class="set-info">
-                                    <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
-                                    <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
-                                    <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
-                                </div>
-                            </div>
-                            """
-
-                        html += "</body></html>"
-                        components.html(html, height=750, scrolling=True)
-
+                        components.html(html, height=800, scrolling=True)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

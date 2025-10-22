@@ -18,8 +18,12 @@ LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/l
 LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"
 
 # ------------------------------------------------------------
-# FUNCIONES AUXILIARES
+# ESTADO Y AUXILIARES
 # ------------------------------------------------------------
+if "cache_sets" not in st.session_state:
+    # Mapa: set_number (str) -> dict con todos los campos del set
+    st.session_state["cache_sets"] = {}
+
 def convertir_a_base64(archivo):
     if archivo is None:
         return None
@@ -28,31 +32,48 @@ def convertir_a_base64(archivo):
     tipo = archivo.type
     return f"data:{tipo};base64,{b64}"
 
-def mostrar_detalle_set(set_data):
-    """Muestra una vista de detalle del set seleccionado"""
-    st.button("← Volver al listado", on_click=lambda: st.session_state.pop("set_seleccionado", None))
+def limpiar_md_rotas(txt: str) -> str:
+    return re.sub(r"!\[.*?\]\(\s*\)", "", txt or "")
+
+def render_link_detalle(set_number: str | int) -> str:
+    return f"?view=detalle&id={set_number}"
+
+def mostrar_detalle_set(set_data: dict):
+    # Botón volver: limpia query params
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("← Volver al listado"):
+            # Limpiamos los query params y recargamos
+            st.experimental_set_query_params()
+            st.experimental_rerun()
+
     st.markdown(f"## {set_data.get('set_number', '')} · {set_data.get('name', '')}")
     st.caption(f"{set_data.get('theme', '')} · {set_data.get('year', '')}")
-    st.image(set_data.get("image_url", ""), width=400)
 
-    st.markdown(
-        f"""
-        **🧩 Piezas:** {set_data.get('pieces', '')}  
-        **🎁 Condición:** {set_data.get('condition', '')}  
-        **🏠 Ubicación:** {set_data.get('storage', '')}  
-        **📦 Caja:** {set_data.get('storage_box', '')}  
-        """
-    )
+    image_url = set_data.get("image_url") or set_data.get("thumb_url") or ""
+    if image_url:
+        st.image(image_url, width=420)
 
-    manuals = set_data.get("manuals", [])
+    piezas = set_data.get("pieces", "")
+    condition = set_data.get("condition", "")
+    storage = set_data.get("storage", "")
+    storage_box = set_data.get("storage_box", "")
+    linea = f"🧩 {piezas} piezas"
+    if condition: linea += f" · 🎁 {condition}"
+    if storage: linea += f" · 🏠 {storage}"
+    if storage_box not in [None, "", 0, "0"]:
+        linea += f" · 📦 Caja {storage_box}"
+    st.caption(linea)
+
+    manuals = set_data.get("manuals", []) or []
     if manuals:
         links = [f"[Manual {i+1}]({m})" for i, m in enumerate(manuals)]
         st.markdown("**📘 Manuales:** " + " · ".join(links))
 
-    minifigs = set_data.get("minifigs_names", [])
-    numbers = set_data.get("minifigs_numbers", [])
-    if minifigs:
-        figs = ", ".join([f"{n} ({num})" for n, num in zip(minifigs, numbers)])
+    names = set_data.get("minifigs_names", []) or set_data.get("minifig_names", []) or []
+    nums = set_data.get("minifigs_numbers", []) or set_data.get("minifig_numbers", []) or []
+    if names:
+        figs = ", ".join([f"{n} ({num})" for n, num in zip(names, nums)])
         st.markdown(f"**🧍 Minifigs:** {figs}")
 
     lego_web = set_data.get("lego_web_url", "")
@@ -61,53 +82,118 @@ def mostrar_detalle_set(set_data):
 
     st.markdown("---")
 
+def intentar_buscar_detalle_por_numero(set_number: str | int) -> dict | None:
+    """
+    Fallback si no está en cache: intentamos con legoSearch.
+    Ajusta la 'pregunta' a lo que tu lambda entienda mejor.
+    """
+    try:
+        pregunta = f"¿Qué información tienes del set {set_number}?"
+        r = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=30)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        body = data.get("body")
+        if isinstance(body, str):
+            data = json.loads(body)
+        # Buscamos el set exacto en resultados
+        for it in data.get("resultados", []):
+            if str(it.get("set_number", "")).strip() == str(set_number).strip():
+                return it
+        # Si no hay match exacto, devolvemos el primero si existe
+        if data.get("resultados"):
+            return data["resultados"][0]
+        return None
+    except Exception:
+        return None
+
+# ------------------------------------------------------------
+# ROUTING: si hay view=detalle&id=...
+# ------------------------------------------------------------
+params = st.experimental_get_query_params()
+if params.get("view", [""])[0] == "detalle" and "id" in params:
+    set_id = params["id"][0]
+    # Buscar en cache
+    detalle = st.session_state["cache_sets"].get(str(set_id))
+    if not detalle:
+        # Intento de respaldo
+        detalle = intentar_buscar_detalle_por_numero(set_id)
+        if detalle:
+            st.session_state["cache_sets"][str(set_id)] = detalle
+
+    if detalle:
+        mostrar_detalle_set(detalle)
+        st.stop()
+    else:
+        st.warning("No pude cargar el detalle de este set. Regresando al listado…")
+        st.experimental_set_query_params()
+        # seguimos con el render normal
+
 # ------------------------------------------------------------
 # PESTAÑAS
 # ------------------------------------------------------------
 tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
-# TAB 1: BUSCAR
+# TAB 1: BUSCAR (con enlaces a detalle)
 # ============================================================
 with tab1:
-    if "set_seleccionado" not in st.session_state:
-        pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
-        if st.button("Buscar"):
-            if not pregunta.strip():
-                st.warning("Escribe una pregunta.")
-            else:
-                with st.spinner("Buscando..."):
-                    try:
-                        resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
-                        if resp.status_code != 200:
-                            st.error(f"Error {resp.status_code}: {resp.text}")
-                        else:
-                            data = resp.json()
-                            body = data.get("body")
-                            if isinstance(body, str):
-                                data = json.loads(body)
+    pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
+    if st.button("Buscar"):
+        if not pregunta.strip():
+            st.warning("Escribe una pregunta.")
+        else:
+            with st.spinner("Buscando..."):
+                try:
+                    resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
+                    if resp.status_code != 200:
+                        st.error(f"Error {resp.status_code}: {resp.text}")
+                    else:
+                        data = resp.json()
+                        body = data.get("body")
+                        if isinstance(body, str):
+                            data = json.loads(body)
 
-                            respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
+                        respuesta = limpiar_md_rotas(data.get("respuesta", ""))
+                        if respuesta:
                             st.markdown(f"### 💬 {respuesta}")
 
-                            resultados = data.get("resultados", [])
-                            if not resultados:
-                                st.info("No se encontraron resultados.")
-                            else:
-                                for i, set_data in enumerate(resultados):
-                                    thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
-                                    st.image(thumb, width=180)
-                                    st.markdown(f"**{set_data.get('set_number', '')} · {set_data.get('name', '')}**")
-                                    st.caption(f"{set_data.get('theme', '')} · {set_data.get('year', '')} · 🧩 {set_data.get('pieces', '')} piezas")
-                                    st.caption(f"🎁 {set_data.get('condition', '')} · 🏠 {set_data.get('storage', '')}")
-                                    if st.button(f"Ver detalles {i}", key=f"detalle_{i}"):
-                                        st.session_state["set_seleccionado"] = set_data
-                                        st.experimental_rerun()
-                                    st.markdown("---")
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-    else:
-        mostrar_detalle_set(st.session_state["set_seleccionado"])
+                        resultados = data.get("resultados", [])
+                        if not resultados:
+                            st.info("No se encontraron resultados.")
+                        else:
+                            for set_data in resultados:
+                                # Cacheamos por set_number
+                                sn = str(set_data.get("set_number", "")).strip()
+                                if sn:
+                                    st.session_state["cache_sets"][sn] = set_data
+
+                                thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
+                                cols = st.columns([1, 3])
+                                with cols[0]:
+                                    if thumb:
+                                        # La imagen enlaza al detalle
+                                        st.markdown(
+                                            f'<a href="{render_link_detalle(sn)}"><img src="{thumb}" style="width:140px;border-radius:8px;border:1px solid #ddd;"></a>',
+                                            unsafe_allow_html=True
+                                        )
+                                    else:
+                                        st.markdown(
+                                            f'<a href="{render_link_detalle(sn)}"><div style="width:140px;height:96px;background:#eee;border-radius:8px;border:1px solid #ddd;"></div></a>',
+                                            unsafe_allow_html=True
+                                        )
+                                with cols[1]:
+                                    st.markdown(f"**[{sn} · {set_data.get('name','')}]({render_link_detalle(sn)})**")
+                                    st.caption(f"{set_data.get('theme','')} · {set_data.get('year','')} · 🧩 {set_data.get('pieces','')} piezas")
+                                    linea = f"🎁 {set_data.get('condition','')}"
+                                    if set_data.get('storage'):
+                                        linea += f" · 🏠 {set_data.get('storage')}"
+                                    if set_data.get('storage_box') not in [None, "", 0, "0"]:
+                                        linea += f" · 📦 Caja {set_data.get('storage_box')}"
+                                    st.caption(linea)
+                                st.markdown("---")
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
 
 # ============================================================
 # TAB 2: ADMINISTRAR
@@ -138,6 +224,7 @@ with tab2:
         try:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
+
             minifigs_names, minifigs_numbers = [], []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
@@ -187,42 +274,60 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA
+# TAB 3: LISTADO POR TEMA (con enlaces a detalle)
 # ============================================================
 with tab3:
-    if "set_seleccionado_tab3" not in st.session_state:
-        st.subheader("📦 Listado de sets por tema")
-        tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
+    st.subheader("📦 Listado de sets por tema")
+    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
 
-        if st.button("Mostrar sets"):
-            try:
-                with st.spinner(f"Obteniendo sets de {tema}..."):
-                    r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
-                    if r.status_code == 200:
-                        data = r.json()
-                        body = data.get("body")
-                        if isinstance(body, str):
-                            data = json.loads(body)
+    if st.button("Mostrar sets"):
+        try:
+            with st.spinner(f"Obteniendo sets de {tema}..."):
+                r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
+                if r.status_code == 200:
+                    data = r.json()
+                    body = data.get("body")
+                    if isinstance(body, str):
+                        data = json.loads(body)
 
-                        resultados = data.get("resultados", [])
-                        if not resultados:
-                            st.info(f"No hay sets registrados en el tema {tema}.")
-                        else:
-                            for i, set_data in enumerate(resultados):
-                                thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
-                                st.image(thumb, width=180)
-                                st.markdown(f"**{set_data.get('set_number', '')} · {set_data.get('name', '')}**")
-                                st.caption(f"{set_data.get('year', '')} · 🧩 {set_data.get('pieces', '')} piezas · 🎁 {set_data.get('condition', '')}")
-                                if st.button(f"Ver detalles tab3 {i}", key=f"detalle_tab3_{i}"):
-                                    st.session_state["set_seleccionado_tab3"] = set_data
-                                    st.experimental_rerun()
-                                st.markdown("---")
+                    resultados = data.get("resultados", [])
+                    if not resultados:
+                        st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
-                        st.error(f"Error {r.status_code}: {r.text}")
-            except Exception as e:
-                st.error(f"Ocurrió un error: {str(e)}")
-    else:
-        mostrar_detalle_set(st.session_state["set_seleccionado_tab3"])
+                        for set_data in resultados:
+                            # Cacheamos por set_number
+                            sn = str(set_data.get("set_number", "")).strip()
+                            if sn:
+                                st.session_state["cache_sets"][sn] = set_data
+
+                            thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
+                            cols = st.columns([1, 3])
+                            with cols[0]:
+                                if thumb:
+                                    st.markdown(
+                                        f'<a href="{render_link_detalle(sn)}"><img src="{thumb}" style="width:140px;border-radius:8px;border:1px solid #ddd;"></a>',
+                                        unsafe_allow_html=True
+                                    )
+                                else:
+                                    st.markdown(
+                                        f'<a href="{render_link_detalle(sn)}"><div style="width:140px;height:96px;background:#eee;border-radius:8px;border:1px solid #ddd;"></div></a>',
+                                        unsafe_allow_html=True
+                                    )
+                            with cols[1]:
+                                st.markdown(f"**[{sn} · {set_data.get('name','')}]({render_link_detalle(sn)})**")
+                                st.caption(f"{set_data.get('year','')} · 🧩 {set_data.get('pieces','')} piezas · 🎁 {set_data.get('condition','')}")
+                                detalle_linea = []
+                                if set_data.get("storage"): detalle_linea.append(f"🏠 {set_data.get('storage')}")
+                                sb = set_data.get("storage_box")
+                                if sb not in [None, "", 0, "0"]:
+                                    detalle_linea.append(f"📦 Caja {sb}")
+                                if detalle_linea:
+                                    st.caption(" · ".join(detalle_linea))
+                            st.markdown("---")
+                else:
+                    st.error(f"Error {r.status_code}: {r.text}")
+        except Exception as e:
+            st.error(f"Ocurrió un error: {str(e)}")
 
 # ------------------------------------------------------------
 # PIE

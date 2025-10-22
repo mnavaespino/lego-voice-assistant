@@ -104,7 +104,7 @@ with tab1:
                     st.error(f"Error: {str(e)}")
 
 # ============================================================
-# TAB 2: ADMINISTRAR CATÁLOGO (igual que tu versión original)
+# TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
 with tab2:
     accion = st.radio("Acción", ["Alta", "Baja", "Actualizacion"], horizontal=True)
@@ -209,7 +209,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO (Expander por set)
+# TAB 3: LISTADO (Expander con miniatura)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -235,10 +235,23 @@ with tab3:
                             name = set_data.get("name", "")
                             year = set_data.get("year", "")
                             piezas = set_data.get("pieces", "")
-                            resumen = f"{year} · 🧩 {piezas} piezas · 🎁 {set_data.get('condition','')}"
+                            condicion = set_data.get("condition", "")
+                            resumen = f"{year} · 🧩 {piezas} piezas · 🎁 {condicion}"
+
+                            thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
 
                             with st.expander(f"**{set_number} · {name}**  \n{resumen}"):
-                                mostrar_detalle_expandido(set_data)
+                                col1, col2 = st.columns([1, 3])
+                                with col1:
+                                    if thumb:
+                                        st.image(thumb, width=120)
+                                    else:
+                                        st.markdown(
+                                            "<div style='width:120px;height:80px;background:#ddd;border-radius:8px;'></div>",
+                                            unsafe_allow_html=True
+                                        )
+                                with col2:
+                                    mostrar_detalle_expandido(set_data)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

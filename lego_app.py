@@ -315,6 +315,16 @@ with tab3:
                                 if thumb or full
                                 else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                             )
+
+                            # ✅ Extraer minifigs (si existen)
+                            minifigs_list = row.get("minifigs_names", [])
+                            if isinstance(minifigs_list, list) and minifigs_list:
+                                minifigs_html = "<br>".join([f"• {m}" for m in minifigs_list])
+                                minifigs_block = f'<div class="set-detail" style="margin-top:6px;">🧍‍♂️ <b>Minifigs:</b><br>{minifigs_html}</div>'
+                            else:
+                                minifigs_block = ""
+
+                            
                             html += f"""
                             <div class="set-card">
                                 {image_html}
@@ -322,7 +332,7 @@ with tab3:
                                     <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
                                     <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
                                     <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
-                                    <div class="set-detail">figs {row.get("minifigs_numbers", "")}</div>
+                                    {minifigs_block}
                                 </div>
                             </div>
                             """

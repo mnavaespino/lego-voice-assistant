@@ -35,39 +35,6 @@ def convertir_a_base64(archivo):
 tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
-# FUNCIÓN AUXILIAR PARA RENDERIZAR DETALLES COMPLETOS
-# ============================================================
-def render_detalle(row):
-    manuals = row.get("manuals", [])
-    minifigs = row.get("minifigs_names", [])
-    numbers = row.get("minifigs_numbers", [])
-    tags = row.get("tags", [])
-    lego_url = row.get("lego_web_url", "")
-
-    manual_links = ""
-    if manuals:
-        manual_links = " · ".join([f'<a href="{m}" target="_blank">Manual {i+1}</a>' for i, m in enumerate(manuals)])
-
-    minifigs_text = ""
-    if minifigs:
-        lista = [f"{name} ({num})" for name, num in zip(minifigs, numbers)]
-        minifigs_text = ", ".join(lista)
-
-    tags_text = ", ".join(tags) if tags else ""
-
-    detalle_html = "<div class='extra'>"
-    if manual_links:
-        detalle_html += f"<div>📘 <b>Manuales:</b> {manual_links}</div>"
-    if minifigs_text:
-        detalle_html += f"<div>🧍 <b>Minifigs:</b> {minifigs_text}</div>"
-    if tags_text:
-        detalle_html += f"<div>🏷️ <b>Tags:</b> {tags_text}</div>"
-    if lego_url:
-        detalle_html += f"<div>🌐 <a href='{lego_url}' target='_blank'>Página oficial LEGO</a></div>"
-    detalle_html += "</div>"
-    return detalle_html
-
-# ============================================================
 # TAB 1: BUSCAR EN CATÁLOGO (Diseño moderno tipo galería)
 # ============================================================
 with tab1:
@@ -104,7 +71,7 @@ with tab1:
                                 body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
                                 .set-card {
                                     display: flex;
-                                    align-items: flex-start;
+                                    align-items: center;
                                     gap: 16px;
                                     padding: 12px 16px;
                                     border-radius: 12px;
@@ -117,18 +84,25 @@ with tab1:
                                 .set-card:hover { transform: scale(1.01); background-color: #fff; }
                                 .set-img {
                                     width: 120px;
+                                    height: auto;
                                     border-radius: 8px;
                                     object-fit: contain;
                                     background-color: #fff;
                                     border: 1px solid #ddd;
                                 }
-                                .set-info { flex-grow: 1; font-size: 13px; }
-                                .set-title { font-weight: 600; font-size: 16px; margin-bottom: 6px; color: #222; }
-                                .set-sub { color: #666; margin-bottom: 4px; }
-                                .set-detail { color: #444; margin-bottom: 6px; }
-                                .extra { margin-top: 6px; font-size: 13px; }
-                                a { color: #0a66c2; text-decoration: none; }
-                                a:hover { text-decoration: underline; }
+                                .set-info { flex-grow: 1; }
+                                .set-title {
+                                    font-weight: 600;
+                                    font-size: 16px;
+                                    color: #222;
+                                    margin-bottom: 4px;
+                                }
+                                .set-sub {
+                                    color: #666;
+                                    font-size: 13px;
+                                    margin-bottom: 4px;
+                                }
+                                .set-detail { font-size: 13px; color: #444; }
                             </style></head><body>
                             """
 
@@ -138,10 +112,8 @@ with tab1:
                                 image_html = (
                                     f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
                                     if thumb or full
-                                    else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;line-height:80px;text-align:center;">—</div>'
+                                    else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                                 )
-
-                                detalle_html = render_detalle(row)
                                 html += f"""
                                 <div class="set-card">
                                     {image_html}
@@ -149,7 +121,6 @@ with tab1:
                                         <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
                                         <div class="set-sub">{row.get("theme", "")} · {row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
                                         <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
-                                        {detalle_html}
                                     </div>
                                 </div>
                                 """
@@ -161,12 +132,116 @@ with tab1:
                     st.error(f"Error: {str(e)}")
 
 # ============================================================
-# TAB 2: ADMINISTRAR CATÁLOGO (igual)
+# TAB 2: ADMINISTRAR CATÁLOGO
 # ============================================================
-# (Sin cambios, se mantiene tu versión original completa)
+with tab2:
+    accion = st.radio("Acción", ["Alta", "Baja", "Actualizacion"], horizontal=True)
+    st.divider()
+
+    set_number = st.text_input("Número de set")
+    name = st.text_input("Nombre")
+    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
+    year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
+    pieces = st.number_input("Piezas", min_value=0, step=10)
+    storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
+    storage_box = st.number_input("Caja", min_value=0, step=1)
+    condition = st.selectbox("Condición", ["In Lego Box", "Open"])
+
+    imagen_archivo = None
+    if accion in ["Alta", "Actualizacion"]:
+        imagen_archivo = st.file_uploader("📸 Selecciona imagen del set", type=["jpg", "jpeg", "webp"])
+
+    lego_web_url = st.text_input("URL página LEGO (opcional)", placeholder="https://www.lego.com/...")
+    manuals = st.text_area("Manuales (uno por línea)")
+    minifigs = st.text_area("Minifigs (formato: número: nombre por línea, ej. SW1378: Ackbar Trooper)")
+    tags = st.text_area("Tags (separados por comas)", placeholder="nave, star wars, exclusivo")
+
+    if st.button("Enviar"):
+        try:
+            set_number_int = int(set_number)
+            manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
+
+            minifigs_names = []
+            minifigs_numbers = []
+            for line in minifigs.splitlines():
+                p = [x.strip() for x in line.split(":")]
+                if len(p) == 2:
+                    minifigs_names.append(p[1])
+                    minifigs_numbers.append(p[0])
+
+            tags_list = [t.strip() for t in tags.split(",") if t.strip()]
+
+            payload = {"accion": accion.lower()}
+            imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
+
+            if accion == "Alta":
+                payload["lego"] = {
+                    "set_number": set_number_int,
+                    "name": name,
+                    "theme": theme,
+                    "year": year,
+                    "pieces": pieces,
+                    "storage": storage,
+                    "storage_box": storage_box,
+                    "condition": condition,
+                    "lego_web_url": lego_web_url,
+                    "manuals": manual_list,
+                    "minifigs_names": minifigs_names,
+                    "minifigs_numbers": minifigs_numbers,
+                    "tags": tags_list,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+                if imagen_base64:
+                    payload["lego"]["imagen_base64"] = imagen_base64
+
+            elif accion == "Baja":
+                payload["set_number"] = set_number_int
+
+            else:
+                campos = {
+                    "name": name,
+                    "theme": theme,
+                    "year": year,
+                    "pieces": pieces,
+                    "storage": storage,
+                    "storage_box": storage_box,
+                    "condition": condition,
+                    "lego_web_url": lego_web_url,
+                    "manuals": manual_list,
+                    "minifigs_names": minifigs_names,
+                    "minifigs_numbers": minifigs_numbers,
+                    "tags": tags_list,
+                    "modified_at": datetime.utcnow().isoformat(),
+                }
+                if imagen_base64:
+                    campos["imagen_base64"] = imagen_base64
+
+                campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
+                payload["set_number"] = set_number_int
+                payload["campos"] = campos_filtrados
+
+            with st.spinner("Enviando datos a LEGO Admin..."):
+                r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
+                try:
+                    respuesta = r.json()
+                except:
+                    st.error(f"Error {r.status_code}: {r.text}")
+                    st.stop()
+
+                if r.status_code == 200:
+                    mensaje = respuesta.get("mensaje", "Operación completada.")
+                    image_url = respuesta.get("image_url")
+                    st.success(mensaje)
+                    if image_url:
+                        st.image(image_url, caption="Imagen subida a Firebase", width=250)
+                else:
+                    st.error(f"Error {r.status_code}: {respuesta.get('error', r.text)}")
+
+        except Exception as e:
+            st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (con todos los campos)
+# TAB 3: LISTADO POR TEMA (versión funcional Streamlit nativa)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -187,68 +262,53 @@ with tab3:
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
-                        df = pd.DataFrame(resultados)
-                        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
-                        df["image_full"] = df.get("image_url", "")
+                        for set_data in resultados:
+                            set_number = set_data.get("set_number", "")
+                            name = set_data.get("name", "")
+                            year = set_data.get("year", "")
+                            pieces = set_data.get("pieces", "")
+                            storage = set_data.get("storage", "")
+                            storage_box = set_data.get("storage_box", "")
+                            condition = set_data.get("condition", "")
+                            theme = set_data.get("theme", "")
+                            image = set_data.get("thumb_url", set_data.get("image_url", ""))
 
-                        html = """
-                        <html><head>
-                        <style>
-                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
-                            .set-card {
-                                display: flex;
-                                align-items: flex-start;
-                                gap: 16px;
-                                padding: 12px 16px;
-                                border-radius: 12px;
-                                border: 1px solid #e0e0e0;
-                                margin-bottom: 14px;
-                                background-color: #fafafa;
-                                box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-                                transition: transform 0.1s ease-in-out;
-                            }
-                            .set-card:hover { transform: scale(1.01); background-color: #fff; }
-                            .set-img {
-                                width: 120px;
-                                border-radius: 8px;
-                                object-fit: contain;
-                                background-color: #fff;
-                                border: 1px solid #ddd;
-                            }
-                            .set-info { flex-grow: 1; font-size: 13px; }
-                            .set-title { font-weight: 600; font-size: 16px; margin-bottom: 6px; color: #222; }
-                            .set-sub { color: #666; margin-bottom: 4px; }
-                            .set-detail { color: #444; margin-bottom: 6px; }
-                            .extra { margin-top: 6px; font-size: 13px; }
-                            a { color: #0a66c2; text-decoration: none; }
-                            a:hover { text-decoration: underline; }
-                        </style></head><body>
-                        """
+                            with st.container(border=True):
+                                col1, col2 = st.columns([1, 4])
+                                with col1:
+                                    if image:
+                                        st.image(image, width=120)
+                                    else:
+                                        st.markdown("<div style='width:120px;height:80px;background:#ddd;border-radius:6px;'></div>", unsafe_allow_html=True)
+                                with col2:
+                                    st.markdown(f"### {set_number} · {name}")
+                                    st.caption(f"{theme} · {year}")
+                                    st.markdown(f"🧩 **{pieces} piezas** · 🎁 **{condition}** · 🏠 {storage} · 📦 Caja {storage_box}")
 
-                        for _, row in df.iterrows():
-                            thumb = row.get("thumb", "")
-                            full = row.get("image_full", "")
-                            image_html = (
-                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
-                                if thumb or full
-                                else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;line-height:80px;text-align:center;">—</div>'
-                            )
-                            detalle_html = render_detalle(row)
+                                    manuals = set_data.get("manuals", [])
+                                    if manuals:
+                                        st.markdown("**📘 Manuales:**")
+                                        for i, m in enumerate(manuals):
+                                            st.markdown(f"- [Manual {i+1}]({m})")
 
-                            html += f"""
-                            <div class="set-card">
-                                {image_html}
-                                <div class="set-info">
-                                    <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
-                                    <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
-                                    <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
-                                    {detalle_html}
-                                </div>
-                            </div>
-                            """
+                                    minifigs_names = set_data.get("minifigs_names", [])
+                                    minifigs_numbers = set_data.get("minifigs_numbers", [])
+                                    if minifigs_names:
+                                        figs = ", ".join([f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)])
+                                        st.markdown(f"**🧍 Minifigs:** {figs}")
 
-                        html += "</body></html>"
-                        components.html(html, height=750, scrolling=True)
+                                    tags = set_data.get("tags", [])
+                                    if tags:
+                                        st.markdown("**🏷️ Tags:** " + ", ".join(tags))
+
+                                    lego_url = set_data.get("lego_web_url", "")
+                                    if lego_url:
+                                        st.markdown(f"[🌐 Página oficial LEGO]({lego_url})")
+
+                                    created = set_data.get("created_at", "")
+                                    modified = set_data.get("modified_at", "")
+                                    if created or modified:
+                                        st.caption(f"🕓 Creado: {created or '—'} | Última modif.: {modified or '—'}")
 
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

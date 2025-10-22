@@ -21,7 +21,6 @@ LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/d
 # ESTADO Y AUXILIARES
 # ------------------------------------------------------------
 if "cache_sets" not in st.session_state:
-    # Mapa: set_number (str) -> dict con todos los campos del set
     st.session_state["cache_sets"] = {}
 
 def convertir_a_base64(archivo):
@@ -39,13 +38,11 @@ def render_link_detalle(set_number: str | int) -> str:
     return f"?view=detalle&id={set_number}"
 
 def mostrar_detalle_set(set_data: dict):
-    # Botón volver: limpia query params
     col1, col2 = st.columns([1, 5])
     with col1:
         if st.button("← Volver al listado"):
-            # Limpiamos los query params y recargamos
-            st.experimental_set_query_params()
-            st.experimental_rerun()
+            st.query_params.clear()
+            st.rerun()
 
     st.markdown(f"## {set_data.get('set_number', '')} · {set_data.get('name', '')}")
     st.caption(f"{set_data.get('theme', '')} · {set_data.get('year', '')}")
@@ -83,10 +80,6 @@ def mostrar_detalle_set(set_data: dict):
     st.markdown("---")
 
 def intentar_buscar_detalle_por_numero(set_number: str | int) -> dict | None:
-    """
-    Fallback si no está en cache: intentamos con legoSearch.
-    Ajusta la 'pregunta' a lo que tu lambda entienda mejor.
-    """
     try:
         pregunta = f"¿Qué información tienes del set {set_number}?"
         r = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=30)
@@ -96,11 +89,9 @@ def intentar_buscar_detalle_por_numero(set_number: str | int) -> dict | None:
         body = data.get("body")
         if isinstance(body, str):
             data = json.loads(body)
-        # Buscamos el set exacto en resultados
         for it in data.get("resultados", []):
             if str(it.get("set_number", "")).strip() == str(set_number).strip():
                 return it
-        # Si no hay match exacto, devolvemos el primero si existe
         if data.get("resultados"):
             return data["resultados"][0]
         return None
@@ -108,15 +99,13 @@ def intentar_buscar_detalle_por_numero(set_number: str | int) -> dict | None:
         return None
 
 # ------------------------------------------------------------
-# ROUTING: si hay view=detalle&id=...
+# ROUTING con st.query_params
 # ------------------------------------------------------------
-params = st.experimental_get_query_params()
-if params.get("view", [""])[0] == "detalle" and "id" in params:
-    set_id = params["id"][0]
-    # Buscar en cache
+params = st.query_params
+if params.get("view") == "detalle" and "id" in params:
+    set_id = params["id"]
     detalle = st.session_state["cache_sets"].get(str(set_id))
     if not detalle:
-        # Intento de respaldo
         detalle = intentar_buscar_detalle_por_numero(set_id)
         if detalle:
             st.session_state["cache_sets"][str(set_id)] = detalle
@@ -126,8 +115,8 @@ if params.get("view", [""])[0] == "detalle" and "id" in params:
         st.stop()
     else:
         st.warning("No pude cargar el detalle de este set. Regresando al listado…")
-        st.experimental_set_query_params()
-        # seguimos con el render normal
+        st.query_params.clear()
+        st.rerun()
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -153,26 +142,21 @@ with tab1:
                         body = data.get("body")
                         if isinstance(body, str):
                             data = json.loads(body)
-
                         respuesta = limpiar_md_rotas(data.get("respuesta", ""))
                         if respuesta:
                             st.markdown(f"### 💬 {respuesta}")
-
                         resultados = data.get("resultados", [])
                         if not resultados:
                             st.info("No se encontraron resultados.")
                         else:
                             for set_data in resultados:
-                                # Cacheamos por set_number
                                 sn = str(set_data.get("set_number", "")).strip()
                                 if sn:
                                     st.session_state["cache_sets"][sn] = set_data
-
                                 thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
                                 cols = st.columns([1, 3])
                                 with cols[0]:
                                     if thumb:
-                                        # La imagen enlaza al detalle
                                         st.markdown(
                                             f'<a href="{render_link_detalle(sn)}"><img src="{thumb}" style="width:140px;border-radius:8px;border:1px solid #ddd;"></a>',
                                             unsafe_allow_html=True
@@ -188,7 +172,7 @@ with tab1:
                                     linea = f"🎁 {set_data.get('condition','')}"
                                     if set_data.get('storage'):
                                         linea += f" · 🏠 {set_data.get('storage')}"
-                                    if set_data.get('storage_box') not in [None, "", 0, "0"]:
+                                    if set_data.get('storage_box') not in [None, '', 0, '0']:
                                         linea += f" · 📦 Caja {set_data.get('storage_box')}"
                                     st.caption(linea)
                                 st.markdown("---")
@@ -224,14 +208,12 @@ with tab2:
         try:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
-
             minifigs_names, minifigs_numbers = [], []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
                 if len(p) == 2:
                     minifigs_names.append(p[1])
                     minifigs_numbers.append(p[0])
-
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
             payload = {"accion": accion.lower()}
             imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
@@ -274,12 +256,11 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (con enlaces a detalle)
+# TAB 3: LISTADO POR TEMA
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
     tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
-
     if st.button("Mostrar sets"):
         try:
             with st.spinner(f"Obteniendo sets de {tema}..."):
@@ -289,17 +270,14 @@ with tab3:
                     body = data.get("body")
                     if isinstance(body, str):
                         data = json.loads(body)
-
                     resultados = data.get("resultados", [])
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         for set_data in resultados:
-                            # Cacheamos por set_number
                             sn = str(set_data.get("set_number", "")).strip()
                             if sn:
                                 st.session_state["cache_sets"][sn] = set_data
-
                             thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
                             cols = st.columns([1, 3])
                             with cols[0]:

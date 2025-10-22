@@ -322,6 +322,7 @@ with tab3:
                                     <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
                                     <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
                                     <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                    <div class="set-detail">figs {row.get("minifigs_numbers", "")}</div>
                                 </div>
                             </div>
                             """

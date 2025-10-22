@@ -64,7 +64,7 @@ def mostrar_detalle_expandido(set_data):
 tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
-# TAB 1: BUSCAR (Expander por resultado)
+# TAB 1: BUSCAR (Expander con título limpio)
 # ============================================================
 with tab1:
     pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
@@ -209,7 +209,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO (Expander con miniatura)
+# TAB 3: LISTADO (Miniatura visible en título)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -231,6 +231,7 @@ with tab3:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
                         for set_data in resultados:
+                            thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
                             set_number = set_data.get("set_number", "")
                             name = set_data.get("name", "")
                             year = set_data.get("year", "")
@@ -238,20 +239,15 @@ with tab3:
                             condicion = set_data.get("condition", "")
                             resumen = f"{year} · 🧩 {piezas} piezas · 🎁 {condicion}"
 
-                            thumb = set_data.get("thumb_url", set_data.get("image_url", ""))
+                            # Miniatura pequeña visible en la línea del expander
+                            if thumb:
+                                titulo = f"<div style='display:flex;align-items:center;gap:10px;'><img src='{thumb}' width='60'><b>{set_number} · {name}</b></div>"
+                            else:
+                                titulo = f"**{set_number} · {name}**"
 
-                            with st.expander(f"**{set_number} · {name}**  \n{resumen}"):
-                                col1, col2 = st.columns([1, 3])
-                                with col1:
-                                    if thumb:
-                                        st.image(thumb, width=120)
-                                    else:
-                                        st.markdown(
-                                            "<div style='width:120px;height:80px;background:#ddd;border-radius:8px;'></div>",
-                                            unsafe_allow_html=True
-                                        )
-                                with col2:
-                                    mostrar_detalle_expandido(set_data)
+                            with st.expander(resumen):
+                                st.markdown(titulo, unsafe_allow_html=True)
+                                mostrar_detalle_expandido(set_data)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

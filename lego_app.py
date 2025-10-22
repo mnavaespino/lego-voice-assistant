@@ -241,7 +241,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (versión funcional Streamlit nativa)
+# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería con enlace)
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -262,53 +262,72 @@ with tab3:
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
                     else:
-                        for set_data in resultados:
-                            set_number = set_data.get("set_number", "")
-                            name = set_data.get("name", "")
-                            year = set_data.get("year", "")
-                            pieces = set_data.get("pieces", "")
-                            storage = set_data.get("storage", "")
-                            storage_box = set_data.get("storage_box", "")
-                            condition = set_data.get("condition", "")
-                            theme = set_data.get("theme", "")
-                            image = set_data.get("thumb_url", set_data.get("image_url", ""))
+                        df = pd.DataFrame(resultados)
+                        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+                        df["image_full"] = df.get("image_url", "")
 
-                            with st.container(border=True):
-                                col1, col2 = st.columns([1, 4])
-                                with col1:
-                                    if image:
-                                        st.image(image, width=120)
-                                    else:
-                                        st.markdown("<div style='width:120px;height:80px;background:#ddd;border-radius:6px;'></div>", unsafe_allow_html=True)
-                                with col2:
-                                    st.markdown(f"### {set_number} · {name}")
-                                    st.caption(f"{theme} · {year}")
-                                    st.markdown(f"🧩 **{pieces} piezas** · 🎁 **{condition}** · 🏠 {storage} · 📦 Caja {storage_box}")
+                        html = """
+                        <html><head>
+                        <style>
+                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
+                            .set-card {
+                                display: flex;
+                                align-items: center;
+                                gap: 16px;
+                                padding: 12px 16px;
+                                border-radius: 12px;
+                                border: 1px solid #e0e0e0;
+                                margin-bottom: 14px;
+                                background-color: #fafafa;
+                                box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+                                transition: transform 0.1s ease-in-out;
+                            }
+                            .set-card:hover { transform: scale(1.01); background-color: #fff; }
+                            .set-img {
+                                width: 120px;
+                                height: auto;
+                                border-radius: 8px;
+                                object-fit: contain;
+                                background-color: #fff;
+                                border: 1px solid #ddd;
+                            }
+                            .set-info { flex-grow: 1; }
+                            .set-title {
+                                font-weight: 600;
+                                font-size: 16px;
+                                color: #222;
+                                margin-bottom: 4px;
+                            }
+                            .set-sub {
+                                color: #666;
+                                font-size: 13px;
+                                margin-bottom: 4px;
+                            }
+                            .set-detail { font-size: 13px; color: #444; }
+                        </style></head><body>
+                        """
 
-                                    manuals = set_data.get("manuals", [])
-                                    if manuals:
-                                        st.markdown("**📘 Manuales:**")
-                                        for i, m in enumerate(manuals):
-                                            st.markdown(f"- [Manual {i+1}]({m})")
+                        for _, row in df.iterrows():
+                            thumb = row.get("thumb", "")
+                            full = row.get("image_full", "")
+                            image_html = (
+                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+                                if thumb or full
+                                else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
+                            )
+                            html += f"""
+                            <div class="set-card">
+                                {image_html}
+                                <div class="set-info">
+                                    <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
+                                    <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
+                                    <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                </div>
+                            </div>
+                            """
 
-                                    minifigs_names = set_data.get("minifigs_names", [])
-                                    minifigs_numbers = set_data.get("minifigs_numbers", [])
-                                    if minifigs_names:
-                                        figs = ", ".join([f"{n} ({num})" for n, num in zip(minifigs_names, minifigs_numbers)])
-                                        st.markdown(f"**🧍 Minifigs:** {figs}")
-
-                                    tags = set_data.get("tags", [])
-                                    if tags:
-                                        st.markdown("**🏷️ Tags:** " + ", ".join(tags))
-
-                                    lego_url = set_data.get("lego_web_url", "")
-                                    if lego_url:
-                                        st.markdown(f"[🌐 Página oficial LEGO]({lego_url})")
-
-                                    created = set_data.get("created_at", "")
-                                    modified = set_data.get("modified_at", "")
-                                    if created or modified:
-                                        st.caption(f"🕓 Creado: {created or '—'} | Última modif.: {modified or '—'}")
+                        html += "</body></html>"
+                        components.html(html, height=750, scrolling=True)
 
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

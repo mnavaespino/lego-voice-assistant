@@ -322,7 +322,7 @@ with tab3:
                                 minifigs_html = "<br>".join([f"• {m}" for m in minifigs_list])
                                 minifigs_block = f'<div class="set-detail" style="margin-top:6px;">🧍‍♂️ <b>Minifigs:</b><br>{minifigs_html}</div>'
                             else:
-                                minifigs_block = "🧍‍♂️"
+                                minifigs_block = ""
 
                             
                             html += f"""

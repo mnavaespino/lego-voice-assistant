@@ -29,19 +29,46 @@ def convertir_a_base64(archivo):
 
 
 def mostrar_resultados(resultados):
-    """Muestra los sets encontrados en formato minimalista."""
+    """Renderiza cada set con detalles completos."""
     for r in resultados:
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            if r.get("thumb_url"):
-                st.image(r["thumb_url"], use_container_width=True)
+        st.markdown("---")
+        cols = st.columns([1, 3])
+        with cols[0]:
+            thumb = r.get("thumb_url") or r.get("image_url")
+            full = r.get("image_url")
+            if thumb:
+                if full:
+                    st.markdown(f"[![Set]({thumb})]({full})", unsafe_allow_html=True)
+                else:
+                    st.image(thumb, use_container_width=True)
             else:
-                st.empty()
-        with col2:
-            st.markdown(f"**{r.get('set_number','')} · {r.get('name','')}**")
+                st.image("https://via.placeholder.com/150x100?text=No+Image", use_container_width=True)
+
+        with cols[1]:
+            st.markdown(f"### {r.get('set_number','')} · {r.get('name','')}")
             st.caption(f"{r.get('theme','')} · {r.get('year','')} · 🧩 {r.get('pieces','')} piezas")
-            st.write(f"🎁 {r.get('condition','')} · 🏠 {r.get('storage','')} · Caja {r.get('storage_box','')}")
-        st.divider()
+            st.write(f"🎁 **Condición:** {r.get('condition','')}")
+            st.write(f"🏠 **Ubicación:** {r.get('storage','')} · 📦 Caja {r.get('storage_box','')}")
+            if r.get("lego_web_url"):
+                st.markdown(f"🔗 [Página oficial de LEGO]({r['lego_web_url']})", unsafe_allow_html=True)
+
+            manuals = r.get("manuals", [])
+            if manuals:
+                st.markdown("📘 **Manuales:**")
+                for m in manuals:
+                    st.markdown(f"- [{m}]({m})")
+
+            minifigs = r.get("minifigs_names", [])
+            if minifigs:
+                st.markdown("🧍‍♂️ **Minifigs:**")
+                st.markdown("<br>".join([f"• {m}" for m in minifigs]), unsafe_allow_html=True)
+
+            tags = r.get("tags", [])
+            if tags:
+                st.markdown(
+                    f"🏷️ **Tags:** {', '.join(tags)}",
+                    unsafe_allow_html=True
+                )
 
 
 # ------------------------------------------------------------
@@ -53,7 +80,7 @@ tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "📦 Listado", "⚙️ Administrar"]
 # TAB 1: BUSCAR
 # ============================================================
 with tab1:
-    pregunta = st.text_input("Escribe tu pregunta:", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
+    pregunta = st.text_input("Pregunta:", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
     if st.button("Buscar"):
         if not pregunta.strip():
             st.warning("Escribe una pregunta antes de buscar.")
@@ -82,7 +109,7 @@ with tab1:
 # ============================================================
 with tab2:
     tema = st.selectbox("Selecciona un tema:", ["Star Wars", "Technic", "Ideas", "F1"])
-    if st.button("Mostrar"):
+    if st.button("Mostrar sets"):
         with st.spinner(f"Obteniendo sets de {tema}..."):
             try:
                 resp = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)

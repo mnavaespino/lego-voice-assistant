@@ -131,7 +131,7 @@ with tab2:
     st.divider()
     set_number = st.text_input("Número de set")
     name = st.text_input("Nombre")
-    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
+    theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
     year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("Piezas", min_value=0, step=10)
     storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])

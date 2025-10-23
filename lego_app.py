@@ -139,7 +139,7 @@ with tab3:
     name = st.text_input("Nombre")
 
     # 👇 Tema vuelve a ser un catálogo (como antes)
-    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
+    theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
 
     year = st.number_input("Año", 1970, 2030, step=1)
     pieces = st.number_input("Piezas", 0, step=10)

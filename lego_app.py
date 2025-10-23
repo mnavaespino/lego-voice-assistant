@@ -5,7 +5,7 @@ import json
 import base64
 from datetime import datetime
 import pandas as pd
-import streamlit.components.v1 as components  # 👈 para renderizar HTML moderno
+import streamlit.components.v1 as components
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
@@ -35,7 +35,7 @@ def convertir_a_base64(archivo):
 tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
 
 # ============================================================
-# TAB 1: BUSCAR EN CATÁLOGO (Diseño moderno tipo galería)
+# TAB 1: BUSCAR EN CATÁLOGO
 # ============================================================
 with tab1:
     pregunta = st.text_input("🔍 Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
@@ -127,12 +127,15 @@ with tab1:
 
                             html += """
                             <script>
-                            const resizeObserver = new ResizeObserver(entries => {
-                              for (let entry of entries) {
-                                window.parent.postMessage({streamlitResize: entry.contentRect.height}, "*");
-                              }
-                            });
+                            function updateHeight() {
+                              const h = document.body.scrollHeight;
+                              window.parent.postMessage({ streamlitResize: h + 40 }, "*");
+                            }
+                            const resizeObserver = new ResizeObserver(() => updateHeight());
                             resizeObserver.observe(document.body);
+                            window.addEventListener("load", () => {
+                              setTimeout(updateHeight, 300);
+                            });
                             </script>
                             </body></html>
                             """
@@ -348,12 +351,15 @@ with tab3:
 
                         html += """
                         <script>
-                        const resizeObserver = new ResizeObserver(entries => {
-                          for (let entry of entries) {
-                            window.parent.postMessage({streamlitResize: entry.contentRect.height}, "*");
-                          }
-                        });
+                        function updateHeight() {
+                          const h = document.body.scrollHeight;
+                          window.parent.postMessage({ streamlitResize: h + 40 }, "*");
+                        }
+                        const resizeObserver = new ResizeObserver(() => updateHeight());
                         resizeObserver.observe(document.body);
+                        window.addEventListener("load", () => {
+                          setTimeout(updateHeight, 300);
+                        });
                         </script>
                         </body></html>
                         """

@@ -74,15 +74,13 @@ with tab1:
                             html = """
                             <html><head><style>
                                 body { font-family:'Inter', Roboto, sans-serif; color:#333; background:#fff; margin:0; padding:0; }
-                                .set-card {
-                                    display:flex; align-items:center; gap:16px;
-                                    padding:10px 14px; border-radius:10px;
-                                    border:1px solid #eee; margin-bottom:10px;
-                                    background:#fafafa;
-                                    transition:transform .15s ease, opacity .3s ease; opacity:0;
-                                }
+                                .set-card { display:flex; align-items:center; gap:16px;
+                                    padding:10px 14px; border-radius:10px; border:1px solid #eee;
+                                    margin-bottom:10px; background:#fafafa;
+                                    transition:transform .15s ease, opacity .3s ease; opacity:0; }
                                 .set-card.visible { opacity:1; transform:translateY(0); }
-                                .set-img { width:100px; height:auto; border-radius:6px; object-fit:contain; border:1px solid #ddd; background:#fff; }
+                                .set-img { width:100px; height:auto; border-radius:6px;
+                                    object-fit:contain; border:1px solid #ddd; background:#fff; }
                                 .set-info { flex-grow:1; }
                                 .set-title { font-weight:600; font-size:15px; color:#222; margin-bottom:3px; }
                                 .set-sub { color:#777; font-size:13px; margin-bottom:4px; }
@@ -97,12 +95,18 @@ with tab1:
                                     if thumb or full else
                                     '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
                                 )
+
+                                # 👇 contar minifigs
+                                minifigs = row.get("minifigs_names", [])
+                                total_minifigs = len(minifigs) if isinstance(minifigs, list) else 0
+                                minifigs_text = f" · 🧍‍♂️ {total_minifigs} minifigs" if total_minifigs > 0 else ""
+
                                 html += f"""
                                 <div class="set-card">
                                     {image_html}
                                     <div class="set-info">
                                         <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
-                                        <div class="set-sub">{row.get("theme","")} · {row.get("year","")} · 🧩 {row.get("pieces","")} piezas</div>
+                                        <div class="set-sub">{row.get("theme","")} · {row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
                                         <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
                                     </div>
                                 </div>"""
@@ -131,7 +135,7 @@ with tab2:
     st.divider()
     set_number = st.text_input("Número de set")
     name = st.text_input("Nombre")
-    theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
+    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
     year = st.number_input("Año", min_value=1970, max_value=2030, step=1)
     pieces = st.number_input("Piezas", min_value=0, step=10)
     storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
@@ -247,19 +251,19 @@ with tab3:
                                 if thumb or full else
                                 '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
                             )
+
+                            # 👇 contar minifigs
                             minifigs = row.get("minifigs_names", [])
-                            minifigs_block = ""
-                            if isinstance(minifigs, list) and minifigs:
-                                mhtml = "<br>".join([f"• {m}" for m in minifigs])
-                                minifigs_block = f'<div class="set-detail" style="margin-top:6px;">🧍‍♂️ <b>Minifigs:</b><br>{mhtml}</div>'
+                            total_minifigs = len(minifigs) if isinstance(minifigs, list) else 0
+                            minifigs_text = f" · 🧍‍♂️ {total_minifigs} minifigs" if total_minifigs > 0 else ""
+
                             html += f"""
                             <div class="set-card">
                                 {image_html}
                                 <div class="set-info">
                                     <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
-                                    <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas</div>
+                                    <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
                                     <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
-                                    {minifigs_block}
                                 </div>
                             </div>"""
                         html += """

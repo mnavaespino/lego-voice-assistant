@@ -68,7 +68,7 @@ with tab1:
                             html = """
                             <html><head>
                             <style>
-                                body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
+                                body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; }
                                 .set-card {
                                     display: flex;
                                     align-items: center;
@@ -125,8 +125,19 @@ with tab1:
                                 </div>
                                 """
 
-                            html += "</body></html>"
-                            components.html(html, height=800, scrolling=True)
+                            html += """
+                            <script>
+                            const resizeObserver = new ResizeObserver(entries => {
+                              for (let entry of entries) {
+                                window.parent.postMessage({streamlitResize: entry.contentRect.height}, "*");
+                              }
+                            });
+                            resizeObserver.observe(document.body);
+                            </script>
+                            </body></html>
+                            """
+
+                            components.html(html, height=1000, scrolling=False)
 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -241,7 +252,7 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (Diseño moderno tipo galería con enlace)
+# TAB 3: LISTADO POR TEMA
 # ============================================================
 with tab3:
     st.subheader("📦 Listado de sets por tema")
@@ -269,7 +280,7 @@ with tab3:
                         html = """
                         <html><head>
                         <style>
-                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; }
+                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; }
                             .set-card {
                                 display: flex;
                                 align-items: center;
@@ -316,7 +327,6 @@ with tab3:
                                 else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
                             )
 
-                            # ✅ Extraer minifigs (si existen)
                             minifigs_list = row.get("minifigs_names", [])
                             if isinstance(minifigs_list, list) and minifigs_list:
                                 minifigs_html = "<br>".join([f"• {m}" for m in minifigs_list])
@@ -324,7 +334,6 @@ with tab3:
                             else:
                                 minifigs_block = ""
 
-                            
                             html += f"""
                             <div class="set-card">
                                 {image_html}
@@ -337,8 +346,19 @@ with tab3:
                             </div>
                             """
 
-                        html += "</body></html>"
-                        components.html(html, height=750, scrolling=True)
+                        html += """
+                        <script>
+                        const resizeObserver = new ResizeObserver(entries => {
+                          for (let entry of entries) {
+                            window.parent.postMessage({streamlitResize: entry.contentRect.height}, "*");
+                          }
+                        });
+                        resizeObserver.observe(document.body);
+                        </script>
+                        </body></html>
+                        """
+
+                        components.html(html, height=1000, scrolling=False)
 
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")

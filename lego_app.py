@@ -92,17 +92,8 @@ with tab1:
                                     border: 1px solid #ddd;
                                 }
                                 .set-info { flex-grow: 1; }
-                                .set-title {
-                                    font-weight: 600;
-                                    font-size: 16px;
-                                    color: #222;
-                                    margin-bottom: 4px;
-                                }
-                                .set-sub {
-                                    color: #666;
-                                    font-size: 13px;
-                                    margin-bottom: 4px;
-                                }
+                                .set-title { font-weight: 600; font-size: 16px; color: #222; margin-bottom: 4px; }
+                                .set-sub { color: #666; font-size: 13px; margin-bottom: 4px; }
                                 .set-detail { font-size: 13px; color: #444; }
                             </style></head><body>
                             """
@@ -119,31 +110,33 @@ with tab1:
                                 <div class="set-card">
                                     {image_html}
                                     <div class="set-info">
-                                        <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
-                                        <div class="set-sub">{row.get("theme", "")} · {row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
-                                        <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                        <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
+                                        <div class="set-sub">{row.get("theme","")} · {row.get("year","")} · 🧩 {row.get("pieces","")} piezas</div>
+                                        <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
                                     </div>
                                 </div>
                                 """
 
                             html += """
                             <script>
-                            function updateHeight(extra = 80) {
+                            let lastHeight = 0;
+                            function updateHeight(extra = 120) {
                               const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-                              window.parent.postMessage({ streamlitResize: h + extra }, "*");
+                              if (Math.abs(h - lastHeight) > 10) {
+                                window.parent.postMessage({ streamlitResize: h + extra }, "*");
+                                lastHeight = h;
+                              }
                             }
-
                             const resizeObserver = new ResizeObserver(() => updateHeight());
                             resizeObserver.observe(document.body);
-
                             window.addEventListener("load", () => {
-                              setTimeout(() => updateHeight(120), 400);
-                              document.querySelectorAll('.set-card').forEach((card, idx) => {
-                                setTimeout(() => card.classList.add('visible'), 80 * idx);
-                              });
+                              setTimeout(() => updateHeight(150), 500);
+                              document.querySelectorAll('.set-card').forEach((c, i) =>
+                                setTimeout(() => c.classList.add('visible'), i * 60)
+                              );
                             });
-
-                            window.addEventListener("scroll", () => updateHeight(120));
+                            window.addEventListener("scroll", () => updateHeight(150));
+                            setInterval(() => updateHeight(150), 200);
                             </script>
                             </body></html>
                             """
@@ -182,83 +175,52 @@ with tab2:
         try:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
-
-            minifigs_names = []
-            minifigs_numbers = []
+            minifigs_names, minifigs_numbers = [], []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
                 if len(p) == 2:
-                    minifigs_names.append(p[1])
                     minifigs_numbers.append(p[0])
-
+                    minifigs_names.append(p[1])
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
-
             payload = {"accion": accion.lower()}
             imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
 
             if accion == "Alta":
                 payload["lego"] = {
-                    "set_number": set_number_int,
-                    "name": name,
-                    "theme": theme,
-                    "year": year,
-                    "pieces": pieces,
-                    "storage": storage,
-                    "storage_box": storage_box,
-                    "condition": condition,
-                    "lego_web_url": lego_web_url,
-                    "manuals": manual_list,
-                    "minifigs_names": minifigs_names,
-                    "minifigs_numbers": minifigs_numbers,
-                    "tags": tags_list,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "set_number": set_number_int, "name": name, "theme": theme,
+                    "year": year, "pieces": pieces, "storage": storage,
+                    "storage_box": storage_box, "condition": condition,
+                    "lego_web_url": lego_web_url, "manuals": manual_list,
+                    "minifigs_names": minifigs_names, "minifigs_numbers": minifigs_numbers,
+                    "tags": tags_list, "created_at": datetime.utcnow().isoformat(),
                 }
-                if imagen_base64:
-                    payload["lego"]["imagen_base64"] = imagen_base64
-
+                if imagen_base64: payload["lego"]["imagen_base64"] = imagen_base64
             elif accion == "Baja":
                 payload["set_number"] = set_number_int
-
             else:
                 campos = {
-                    "name": name,
-                    "theme": theme,
-                    "year": year,
-                    "pieces": pieces,
-                    "storage": storage,
-                    "storage_box": storage_box,
-                    "condition": condition,
-                    "lego_web_url": lego_web_url,
-                    "manuals": manual_list,
-                    "minifigs_names": minifigs_names,
-                    "minifigs_numbers": minifigs_numbers,
-                    "tags": tags_list,
+                    "name": name, "theme": theme, "year": year, "pieces": pieces,
+                    "storage": storage, "storage_box": storage_box,
+                    "condition": condition, "lego_web_url": lego_web_url,
+                    "manuals": manual_list, "minifigs_names": minifigs_names,
+                    "minifigs_numbers": minifigs_numbers, "tags": tags_list,
                     "modified_at": datetime.utcnow().isoformat(),
                 }
-                if imagen_base64:
-                    campos["imagen_base64"] = imagen_base64
-
+                if imagen_base64: campos["imagen_base64"] = imagen_base64
                 campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
-                payload["set_number"] = set_number_int
-                payload["campos"] = campos_filtrados
+                payload["set_number"], payload["campos"] = set_number_int, campos_filtrados
 
             with st.spinner("Enviando datos a LEGO Admin..."):
                 r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
-                try:
-                    respuesta = r.json()
-                except:
-                    st.error(f"Error {r.status_code}: {r.text}")
-                    st.stop()
-
+                try: respuesta = r.json()
+                except: st.error(f"Error {r.status_code}: {r.text}"); st.stop()
                 if r.status_code == 200:
                     mensaje = respuesta.get("mensaje", "Operación completada.")
                     image_url = respuesta.get("image_url")
                     st.success(mensaje)
-                    if image_url:
-                        st.image(image_url, caption="Imagen subida a Firebase", width=250)
+                    if image_url: st.image(image_url, caption="Imagen subida a Firebase", width=250)
                 else:
                     st.error(f"Error {r.status_code}: {respuesta.get('error', r.text)}")
-
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
 
@@ -275,11 +237,8 @@ with tab3:
             with st.spinner(f"Obteniendo sets de {tema}..."):
                 r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, headers=headers, timeout=40)
                 if r.status_code == 200:
-                    data = r.json()
-                    body = data.get("body")
-                    if isinstance(body, str):
-                        data = json.loads(body)
-
+                    data = r.json(); body = data.get("body")
+                    if isinstance(body, str): data = json.loads(body)
                     resultados = data.get("resultados", [])
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
@@ -291,68 +250,33 @@ with tab3:
                         html = """
                         <html><head>
                         <style>
-                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; background:#fff; }
-                            .set-card {
-                                display: flex;
-                                align-items: center;
-                                gap: 16px;
-                                padding: 12px 16px;
-                                border-radius: 12px;
-                                border: 1px solid #e0e0e0;
-                                margin-bottom: 14px;
-                                background-color: #fafafa;
-                                box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-                                transition: transform 0.15s ease, opacity 0.4s ease;
-                                opacity: 0;
-                            }
-                            .set-card.visible { opacity: 1; transform: translateY(0); }
-                            .set-img {
-                                width: 120px;
-                                height: auto;
-                                border-radius: 8px;
-                                object-fit: contain;
-                                background-color: #fff;
-                                border: 1px solid #ddd;
-                            }
-                            .set-info { flex-grow: 1; }
-                            .set-title {
-                                font-weight: 600;
-                                font-size: 16px;
-                                color: #222;
-                                margin-bottom: 4px;
-                            }
-                            .set-sub {
-                                color: #666;
-                                font-size: 13px;
-                                margin-bottom: 4px;
-                            }
-                            .set-detail { font-size: 13px; color: #444; }
+                            body { font-family:'Segoe UI',Roboto,sans-serif;color:#333;margin:0;padding:0;overflow-x:hidden;background:#fff;}
+                            .set-card{display:flex;align-items:center;gap:16px;padding:12px 16px;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:14px;background-color:#fafafa;box-shadow:0 1px 4px rgba(0,0,0,0.05);transition:transform .15s ease,opacity .4s ease;opacity:0;}
+                            .set-card.visible{opacity:1;transform:translateY(0);}
+                            .set-img{width:120px;height:auto;border-radius:8px;object-fit:contain;background:#fff;border:1px solid #ddd;}
+                            .set-info{flex-grow:1;}
+                            .set-title{font-weight:600;font-size:16px;color:#222;margin-bottom:4px;}
+                            .set-sub{color:#666;font-size:13px;margin-bottom:4px;}
+                            .set-detail{font-size:13px;color:#444;}
                         </style></head><body>
                         """
 
                         for i, row in df.iterrows():
-                            thumb = row.get("thumb", "")
-                            full = row.get("image_full", "")
-                            image_html = (
-                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
-                                if thumb or full
-                                else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>'
-                            )
-
-                            minifigs_list = row.get("minifigs_names", [])
-                            if isinstance(minifigs_list, list) and minifigs_list:
-                                minifigs_html = "<br>".join([f"• {m}" for m in minifigs_list])
-                                minifigs_block = f'<div class="set-detail" style="margin-top:6px;">🧍‍♂️ <b>Minifigs:</b><br>{minifigs_html}</div>'
-                            else:
-                                minifigs_block = ""
-
-                            html += f"""
+                            thumb=row.get("thumb",""); full=row.get("image_full","")
+                            image_html=(f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+                                        if thumb or full else '<div style="width:120px;height:80px;background:#ddd;border-radius:6px;text-align:center;line-height:80px;">—</div>')
+                            minifigs=row.get("minifigs_names",[])
+                            minifigs_block=""
+                            if isinstance(minifigs,list) and minifigs:
+                                mhtml="<br>".join([f"• {m}" for m in minifigs])
+                                minifigs_block=f'<div class="set-detail" style="margin-top:6px;">🧍‍♂️ <b>Minifigs:</b><br>{mhtml}</div>'
+                            html+=f"""
                             <div class="set-card">
                                 {image_html}
                                 <div class="set-info">
-                                    <div class="set-title">{row.get("set_number", "")} · {row.get("name", "")}</div>
-                                    <div class="set-sub">{row.get("year", "")} · 🧩 {row.get("pieces", "")} piezas</div>
-                                    <div class="set-detail">🎁 {row.get("condition", "")} · 🏠 {row.get("storage", "")} · 📦 Caja {row.get("storage_box", "")}</div>
+                                    <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
+                                    <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas</div>
+                                    <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
                                     {minifigs_block}
                                 </div>
                             </div>
@@ -360,25 +284,27 @@ with tab3:
 
                         html += """
                         <script>
-                        function updateHeight(extra = 80) {
-                          const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-                          window.parent.postMessage({ streamlitResize: h + extra }, "*");
+                        let lastHeight=0;
+                        function updateHeight(extra=120){
+                          const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
+                          if(Math.abs(h-lastHeight)>10){
+                            window.parent.postMessage({streamlitResize:h+extra},"*");
+                            lastHeight=h;
+                          }
                         }
-                        const resizeObserver = new ResizeObserver(() => updateHeight());
+                        const resizeObserver=new ResizeObserver(()=>updateHeight());
                         resizeObserver.observe(document.body);
-                        window.addEventListener("load", () => {
-                          setTimeout(() => updateHeight(120), 400);
-                          document.querySelectorAll('.set-card').forEach((card, idx) => {
-                            setTimeout(() => card.classList.add('visible'), 80 * idx);
-                          });
+                        window.addEventListener("load",()=>{
+                          setTimeout(()=>updateHeight(150),500);
+                          document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
                         });
-                        window.addEventListener("scroll", () => updateHeight(120));
+                        window.addEventListener("scroll",()=>updateHeight(150));
+                        setInterval(()=>updateHeight(150),200);
                         </script>
                         </body></html>
                         """
 
-                        components.html(html, height=1000, scrolling=False)
-
+                        components.html(html,height=1000,scrolling=False)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:

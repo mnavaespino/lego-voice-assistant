@@ -137,13 +137,20 @@ with tab3:
 
     set_number = st.text_input("Número de set")
     name = st.text_input("Nombre")
-    theme = st.text_input("Tema (ej. Star Wars)")
+
+    # 👇 Tema vuelve a ser un catálogo (como antes)
+    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
+
     year = st.number_input("Año", 1970, 2030, step=1)
     pieces = st.number_input("Piezas", 0, step=10)
-    storage = st.text_input("Ubicación (ej. Cobalto)")
-    storage_box = st.text_input("Caja")
-    condition = st.text_input("Condición (ej. In Lego Box)")
-    image = st.file_uploader("Imagen del set", type=["jpg", "jpeg", "png", "webp"])
+    storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
+    storage_box = st.number_input("Caja", 0, step=1)
+    condition = st.selectbox("Condición", ["In Lego Box", "Open"])
+
+    image = None
+    if accion in ["Alta", "Actualización"]:
+        image = st.file_uploader("Imagen del set", type=["jpg", "jpeg", "png", "webp"])
+
     lego_web_url = st.text_input("URL LEGO", placeholder="https://www.lego.com/...")
     manuals = st.text_area("Manuales (uno por línea)")
     minifigs = st.text_area("Minifigs (número: nombre por línea)")

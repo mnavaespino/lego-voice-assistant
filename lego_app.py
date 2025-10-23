@@ -1,9 +1,8 @@
 import streamlit as st
 import requests
 import json
-import pandas as pd
-from datetime import datetime
 import base64
+from datetime import datetime
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN
@@ -18,9 +17,10 @@ LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/d
 
 
 # ------------------------------------------------------------
-# FUNCIONES
+# FUNCIONES DE APOYO
 # ------------------------------------------------------------
 def convertir_a_base64(archivo):
+    """Convierte una imagen a base64"""
     if archivo is None:
         return None
     contenido = archivo.read()
@@ -29,10 +29,12 @@ def convertir_a_base64(archivo):
 
 
 def mostrar_resultados(resultados):
-    """Renderiza cada set con detalles completos."""
+    """Muestra los sets con detalles completos"""
     for r in resultados:
         st.markdown("---")
         cols = st.columns([1, 3])
+
+        # Imagen
         with cols[0]:
             thumb = r.get("thumb_url") or r.get("image_url")
             full = r.get("image_url")
@@ -44,13 +46,15 @@ def mostrar_resultados(resultados):
             else:
                 st.image("https://via.placeholder.com/150x100?text=No+Image", use_container_width=True)
 
+        # Detalles
         with cols[1]:
             st.markdown(f"### {r.get('set_number','')} · {r.get('name','')}")
             st.caption(f"{r.get('theme','')} · {r.get('year','')} · 🧩 {r.get('pieces','')} piezas")
             st.write(f"🎁 **Condición:** {r.get('condition','')}")
             st.write(f"🏠 **Ubicación:** {r.get('storage','')} · 📦 Caja {r.get('storage_box','')}")
+
             if r.get("lego_web_url"):
-                st.markdown(f"🔗 [Página oficial de LEGO]({r['lego_web_url']})", unsafe_allow_html=True)
+                st.markdown(f"🔗 [Página oficial de LEGO]({r['lego_web_url']})")
 
             manuals = r.get("manuals", [])
             if manuals:
@@ -65,10 +69,7 @@ def mostrar_resultados(resultados):
 
             tags = r.get("tags", [])
             if tags:
-                st.markdown(
-                    f"🏷️ **Tags:** {', '.join(tags)}",
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"🏷️ **Tags:** {', '.join(tags)}")
 
 
 # ------------------------------------------------------------
@@ -85,11 +86,11 @@ with tab1:
         if not pregunta.strip():
             st.warning("Escribe una pregunta antes de buscar.")
         else:
-            with st.spinner("Buscando en tu colección..."):
+            with st.spinner("Buscando..."):
                 try:
-                    resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
-                    if resp.status_code == 200:
-                        data = resp.json()
+                    r = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
+                    if r.status_code == 200:
+                        data = r.json()
                         body = data.get("body")
                         if isinstance(body, str):
                             data = json.loads(body)
@@ -100,7 +101,7 @@ with tab1:
                         else:
                             st.info("No se encontraron resultados.")
                     else:
-                        st.error(f"Error {resp.status_code}: {resp.text}")
+                        st.error(f"Error {r.status_code}: {r.text}")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
@@ -112,9 +113,9 @@ with tab2:
     if st.button("Mostrar sets"):
         with st.spinner(f"Obteniendo sets de {tema}..."):
             try:
-                resp = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
-                if resp.status_code == 200:
-                    data = resp.json()
+                r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
+                if r.status_code == 200:
+                    data = r.json()
                     body = data.get("body")
                     if isinstance(body, str):
                         data = json.loads(body)
@@ -122,9 +123,9 @@ with tab2:
                     if resultados:
                         mostrar_resultados(resultados)
                     else:
-                        st.info("No hay sets registrados en ese tema.")
+                        st.info(f"No hay sets de {tema}.")
                 else:
-                    st.error(f"Error {resp.status_code}: {resp.text}")
+                    st.error(f"Error {r.status_code}: {r.text}")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -137,19 +138,16 @@ with tab3:
 
     set_number = st.text_input("Número de set")
     name = st.text_input("Nombre")
-
-    # 👇 Tema vuelve a ser un catálogo (como antes)
-    theme = st.selectbox("Tema", ["Star Wars", "Technic", "Ideas", "F1"])
-
+    theme = st.selectbox("Tema", ["StarWars", "Technic", "Ideas", "F1"])
     year = st.number_input("Año", 1970, 2030, step=1)
     pieces = st.number_input("Piezas", 0, step=10)
     storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("Caja", 0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
 
-    image = None
+    imagen = None
     if accion in ["Alta", "Actualización"]:
-        image = st.file_uploader("Imagen del set", type=["jpg", "jpeg", "png", "webp"])
+        imagen = st.file_uploader("📸 Imagen del set", type=["jpg", "jpeg", "png", "webp"])
 
     lego_web_url = st.text_input("URL LEGO", placeholder="https://www.lego.com/...")
     manuals = st.text_area("Manuales (uno por línea)")
@@ -158,66 +156,68 @@ with tab3:
 
     if st.button("Enviar"):
         try:
+            if not set_number.strip():
+                st.warning("Debe indicar el número de set.")
+                st.stop()
+
             set_number_int = int(set_number)
-            imagen_base64 = convertir_a_base64(image) if image else None
-            payload = {"accion": accion.lower()}
+            imagen_base64 = convertir_a_base64(imagen) if imagen else None
+            accion_lower = accion.lower()
+            payload = {"accion": accion_lower}
 
-            if accion == "alta":
-                lego = {
-                    "set_number": set_number_int,
-                    "name": name,
-                    "theme": theme,
-                    "year": year,
-                    "pieces": pieces,
-                    "storage": storage,
-                    "storage_box": storage_box,
-                    "condition": condition,
-                    "lego_web_url": lego_web_url,
-                    "manuals": [m.strip() for m in manuals.splitlines() if m.strip()],
-                    "minifigs_names": [x.split(":")[1].strip() for x in minifigs.splitlines() if ":" in x],
-                    "minifigs_numbers": [x.split(":")[0].strip() for x in minifigs.splitlines() if ":" in x],
-                    "tags": [t.strip() for t in tags.split(",") if t.strip()],
-                    "created_at": datetime.utcnow().isoformat(),
-                }
-                if imagen_base64:
-                    lego["imagen_base64"] = imagen_base64
-                payload["lego"] = lego
+            # Campos comunes
+            base_campos = {
+                "set_number": set_number_int,
+                "name": name.strip(),
+                "theme": theme,
+                "year": int(year),
+                "pieces": int(pieces),
+                "storage": storage,
+                "storage_box": int(storage_box),
+                "condition": condition,
+                "lego_web_url": lego_web_url.strip(),
+                "manuals": [m.strip() for m in manuals.splitlines() if m.strip()],
+                "minifigs_names": [x.split(":")[1].strip() for x in minifigs.splitlines() if ":" in x],
+                "minifigs_numbers": [x.split(":")[0].strip() for x in minifigs.splitlines() if ":" in x],
+                "tags": [t.strip() for t in tags.split(",") if t.strip()],
+            }
 
-            elif accion == "baja":
+            if imagen_base64:
+                base_campos["imagen_base64"] = imagen_base64
+
+            # Alta
+            if accion_lower == "alta":
+                base_campos["created_at"] = datetime.utcnow().isoformat()
+                payload["lego"] = base_campos
+
+            # Baja
+            elif accion_lower == "baja":
                 payload["set_number"] = set_number_int
 
-            else:  # actualización
-                campos = {
-                    "name": name,
-                    "theme": theme,
-                    "year": year,
-                    "pieces": pieces,
-                    "storage": storage,
-                    "storage_box": storage_box,
-                    "condition": condition,
-                    "lego_web_url": lego_web_url,
-                    "manuals": [m.strip() for m in manuals.splitlines() if m.strip()],
-                    "minifigs_names": [x.split(":")[1].strip() for x in minifigs.splitlines() if ":" in x],
-                    "minifigs_numbers": [x.split(":")[0].strip() for x in minifigs.splitlines() if ":" in x],
-                    "tags": [t.strip() for t in tags.split(",") if t.strip()],
-                    "modified_at": datetime.utcnow().isoformat(),
-                }
-                if imagen_base64:
-                    campos["imagen_base64"] = imagen_base64
+            # Actualización
+            else:
+                base_campos["modified_at"] = datetime.utcnow().isoformat()
+                campos_filtrados = {k: v for k, v in base_campos.items() if v not in ["", None, [], 0]}
                 payload["set_number"] = set_number_int
-                payload["campos"] = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
+                payload["campos"] = campos_filtrados
 
-            with st.spinner("Enviando datos..."):
+            with st.spinner("Enviando datos a LEGO Admin..."):
                 r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
-                data = r.json()
+                try:
+                    data = r.json()
+                except:
+                    st.error(f"Error {r.status_code}: {r.text}")
+                    st.stop()
+
                 if r.status_code == 200:
                     st.success(data.get("mensaje", "Operación completada."))
                     if data.get("image_url"):
-                        st.image(data["image_url"], width=200)
+                        st.image(data["image_url"], caption="Imagen subida a Firebase", width=250)
                 else:
                     st.error(data.get("error", "Error desconocido."))
+
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            st.error(f"Ocurrió un error: {str(e)}")
 
 # ------------------------------------------------------------
 # PIE

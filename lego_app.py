@@ -68,7 +68,7 @@ with tab1:
                             html = """
                             <html><head>
                             <style>
-                                body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; }
+                                body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; background:#fff; }
                                 .set-card {
                                     display: flex;
                                     align-items: center;
@@ -79,9 +79,10 @@ with tab1:
                                     margin-bottom: 14px;
                                     background-color: #fafafa;
                                     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-                                    transition: transform 0.1s ease-in-out;
+                                    transition: transform 0.15s ease, opacity 0.4s ease;
+                                    opacity: 0;
                                 }
-                                .set-card:hover { transform: scale(1.01); background-color: #fff; }
+                                .set-card.visible { opacity: 1; transform: translateY(0); }
                                 .set-img {
                                     width: 120px;
                                     height: auto;
@@ -106,7 +107,7 @@ with tab1:
                             </style></head><body>
                             """
 
-                            for _, row in df.iterrows():
+                            for i, row in df.iterrows():
                                 thumb = row.get("thumb", "")
                                 full = row.get("image_full", "")
                                 image_html = (
@@ -127,15 +128,22 @@ with tab1:
 
                             html += """
                             <script>
-                            function updateHeight() {
-                              const h = document.body.scrollHeight;
-                              window.parent.postMessage({ streamlitResize: h + 40 }, "*");
+                            function updateHeight(extra = 80) {
+                              const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+                              window.parent.postMessage({ streamlitResize: h + extra }, "*");
                             }
+
                             const resizeObserver = new ResizeObserver(() => updateHeight());
                             resizeObserver.observe(document.body);
+
                             window.addEventListener("load", () => {
-                              setTimeout(updateHeight, 300);
+                              setTimeout(() => updateHeight(120), 400);
+                              document.querySelectorAll('.set-card').forEach((card, idx) => {
+                                setTimeout(() => card.classList.add('visible'), 80 * idx);
+                              });
                             });
+
+                            window.addEventListener("scroll", () => updateHeight(120));
                             </script>
                             </body></html>
                             """
@@ -283,7 +291,7 @@ with tab3:
                         html = """
                         <html><head>
                         <style>
-                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; }
+                            body { font-family: 'Segoe UI', Roboto, sans-serif; color: #333; margin:0; padding:0; overflow-x:hidden; background:#fff; }
                             .set-card {
                                 display: flex;
                                 align-items: center;
@@ -294,9 +302,10 @@ with tab3:
                                 margin-bottom: 14px;
                                 background-color: #fafafa;
                                 box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-                                transition: transform 0.1s ease-in-out;
+                                transition: transform 0.15s ease, opacity 0.4s ease;
+                                opacity: 0;
                             }
-                            .set-card:hover { transform: scale(1.01); background-color: #fff; }
+                            .set-card.visible { opacity: 1; transform: translateY(0); }
                             .set-img {
                                 width: 120px;
                                 height: auto;
@@ -321,7 +330,7 @@ with tab3:
                         </style></head><body>
                         """
 
-                        for _, row in df.iterrows():
+                        for i, row in df.iterrows():
                             thumb = row.get("thumb", "")
                             full = row.get("image_full", "")
                             image_html = (
@@ -351,15 +360,19 @@ with tab3:
 
                         html += """
                         <script>
-                        function updateHeight() {
-                          const h = document.body.scrollHeight;
-                          window.parent.postMessage({ streamlitResize: h + 40 }, "*");
+                        function updateHeight(extra = 80) {
+                          const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+                          window.parent.postMessage({ streamlitResize: h + extra }, "*");
                         }
                         const resizeObserver = new ResizeObserver(() => updateHeight());
                         resizeObserver.observe(document.body);
                         window.addEventListener("load", () => {
-                          setTimeout(updateHeight, 300);
+                          setTimeout(() => updateHeight(120), 400);
+                          document.querySelectorAll('.set-card').forEach((card, idx) => {
+                            setTimeout(() => card.classList.add('visible'), 80 * idx);
+                          });
                         });
+                        window.addEventListener("scroll", () => updateHeight(120));
                         </script>
                         </body></html>
                         """

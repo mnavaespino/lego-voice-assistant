@@ -156,11 +156,13 @@ with tab2:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
             minifigs_names, minifigs_numbers = [], []
+            minifigsTotal = 0
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
                 if len(p) == 2:
                     minifigs_numbers.append(p[0])
                     minifigs_names.append(p[1])
+                minifigsTotal++
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
             payload = {"accion": accion.lower()}
             imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
@@ -171,7 +173,7 @@ with tab2:
                     "year": year, "pieces": pieces, "storage": storage,
                     "storage_box": storage_box, "condition": condition,
                     "lego_web_url": lego_web_url, "manuals": manual_list,
-                    "minifigs_names": minifigs_names, "minifigs_numbers": minifigs_numbers,
+                    "minifigs_names": minifigs_names, "minifigs_numbers": minifigs_numbers, "minifigs_total": minifigsTotal,
                     "tags": tags_list, "created_at": datetime.utcnow().isoformat(),
                 }
                 if imagen_base64: payload["lego"]["imagen_base64"] = imagen_base64

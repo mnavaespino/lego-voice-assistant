@@ -162,7 +162,7 @@ with tab2:
                 if len(p) == 2:
                     minifigs_numbers.append(p[0])
                     minifigs_names.append(p[1])
-                minifigsTotal++
+                minifigsTotal += 1
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
             payload = {"accion": accion.lower()}
             imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None

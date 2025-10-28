@@ -214,4 +214,106 @@ with tab2:
 # TAB 3: LISTADO POR TEMA (con ordenamiento)
 # ============================================================
 with tab3:
-    tema = st.selectbox("Selecciona el tema a mostrar:",
+    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
+    if st.button("Mostrar sets", use_container_width=True):
+        try:
+            with st.spinner(f"Obteniendo sets de {tema}..."):
+                r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
+                if r.status_code == 200:
+                    data = r.json()
+                    body = data.get("body")
+                    if isinstance(body, str):
+                        data = json.loads(body)
+                    resultados = data.get("resultados", [])
+
+                    if not resultados:
+                        st.info(f"No hay sets registrados en el tema {tema}.")
+                    else:
+                        df = pd.DataFrame(resultados)
+                        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+                        df["image_full"] = df.get("image_url", "")
+                        df["minifigs_total"] = df["minifigs_names"].apply(
+                            lambda x: len(x) if isinstance(x, list) else 0
+                        )
+
+                        # 🔽 Selector de ordenamiento
+                        columnas_orden = {
+                            "Número de set": "set_number",
+                            "Nombre": "name",
+                            "Año": "year",
+                            "Piezas": "pieces",
+                            "Minifigs": "minifigs_total",
+                            "Caja": "storage_box"
+                        }
+                        orden_seleccion = st.selectbox(
+                            "Ordenar por:",
+                            list(columnas_orden.keys()),
+                            index=0
+                        )
+                        ascendente = st.toggle("Orden ascendente", value=True)
+
+                        columna_orden = columnas_orden[orden_seleccion]
+                        df = df.sort_values(by=columna_orden, ascending=ascendente, na_position="last")
+
+                        st.markdown(f"**{len(df)} sets encontrados en {tema}**")
+
+                        html = """
+                        <html><head><style>
+                            body { font-family:'Inter',Roboto,sans-serif;color:#333;margin:0;padding:0;background:#fff;}
+                            .set-card{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:10px;border:1px solid #eee;margin-bottom:10px;background:#fafafa;opacity:0;transition:opacity .3s ease;}
+                            .set-card.visible{opacity:1;}
+                            .set-img{width:100px;height:auto;border-radius:6px;object-fit:contain;background:#fff;border:1px solid #ddd;}
+                            .set-title{font-weight:600;font-size:15px;color:#222;margin-bottom:3px;}
+                            .set-sub{color:#777;font-size:13px;margin-bottom:4px;}
+                            .set-detail{font-size:12.5px;color:#555;}
+                        </style></head><body>
+                        """
+
+                        for _, row in df.iterrows():
+                            thumb = row.get("thumb", "")
+                            full = row.get("image_full", "")
+                            image_html = (
+                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+                                if thumb or full else
+                                '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
+                            )
+
+                            minifigs_text = (
+                                f" · 🧍‍♂️ {row['minifigs_total']} minifigs"
+                                if row["minifigs_total"] > 0 else ""
+                            )
+
+                            html += f"""
+                            <div class="set-card">
+                                {image_html}
+                                <div class="set-info">
+                                    <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
+                                    <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
+                                    <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
+                                </div>
+                            </div>"""
+
+                        html += """
+                        <script>
+                          let h=0;
+                          function resize(extra=100){
+                            const n=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
+                            if(Math.abs(n-h)>10){window.parent.postMessage({streamlitResize:n+extra},"*");h=n;}
+                          }
+                          new ResizeObserver(()=>resize()).observe(document.body);
+                          window.addEventListener("load",()=>{setTimeout(()=>resize(150),300);
+                            document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
+                          });
+                        </script></body></html>
+                        """
+                        components.html(html, height=1000, scrolling=False)
+                else:
+                    st.error(f"Error {r.status_code}: {r.text}")
+        except Exception as e:
+            st.error(f"Ocurrió un error: {str(e)}")
+
+# ------------------------------------------------------------
+# PIE
+# ------------------------------------------------------------
+st.markdown("<hr style='margin-top:25px;'>", unsafe_allow_html=True)
+st.caption("Minimal LEGO IA · Desarrollado por Mike Nava")

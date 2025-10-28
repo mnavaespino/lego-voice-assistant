@@ -23,14 +23,16 @@ LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"
 
-# Estado inicial para listado
+# Estado global
+if "editar_set" not in st.session_state:
+    st.session_state["editar_set"] = None
 if "listado_resultados" not in st.session_state:
     st.session_state["listado_resultados"] = []
 if "listado_tema" not in st.session_state:
     st.session_state["listado_tema"] = None
 
 # ------------------------------------------------------------
-# FUNCIÓN PARA CONVERTIR IMAGEN A BASE64
+# FUNCIONES AUXILIARES
 # ------------------------------------------------------------
 def convertir_a_base64(archivo):
     if archivo is None:
@@ -40,19 +42,18 @@ def convertir_a_base64(archivo):
     tipo = archivo.type
     return f"data:{tipo};base64,{b64}"
 
-# ------------------------------------------------------------
-# FUNCIÓN PARA RENDERIZAR LISTA HTML (reutilizable)
-# ------------------------------------------------------------
-def render_listado_html(df):
-    html = """
+def render_listado_html(df, origen):
+    """Renderiza resultados con botón Editar que activa edición."""
+    html = f"""
     <html><head><style>
-        body { font-family:'Inter',Roboto,sans-serif;color:#333;margin:0;padding:0;background:#fff;}
-        .set-card{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:10px;border:1px solid #eee;margin-bottom:10px;background:#fafafa;opacity:0;transition:opacity .3s ease;}
-        .set-card.visible{opacity:1;}
-        .set-img{width:100px;height:auto;border-radius:6px;object-fit:contain;background:#fff;border:1px solid #ddd;}
-        .set-title{font-weight:600;font-size:15px;color:#222;margin-bottom:3px;}
-        .set-sub{color:#777;font-size:13px;margin-bottom:4px;}
-        .set-detail{font-size:12.5px;color:#555;}
+      body {{ font-family:'Inter',Roboto,sans-serif;color:#333;margin:0;padding:0;background:#fff;}}
+      .set-card{{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:10px;border:1px solid #eee;margin-bottom:10px;background:#fafafa;opacity:0;transition:opacity .3s ease;}}
+      .set-card.visible{{opacity:1;}}
+      .set-img{{width:100px;height:auto;border-radius:6px;object-fit:contain;background:#fff;border:1px solid #ddd;}}
+      .set-title{{font-weight:600;font-size:15px;color:#222;margin-bottom:3px;}}
+      .set-sub{{color:#777;font-size:13px;margin-bottom:4px;}}
+      .set-detail{{font-size:12.5px;color:#555;}}
+      .edit-link{{font-size:12px;color:#007bff;text-decoration:none;margin-top:3px;display:inline-block;}}
     </style></head><body>
     """
     for _, row in df.iterrows():
@@ -64,39 +65,72 @@ def render_listado_html(df):
             '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
         )
         minifigs_total = row.get("minifigs_total", 0)
-        minifigs_text = f" · 🧍‍♂️ {int(minifigs_total)} minifigs" if (pd.notna(minifigs_total) and int(minifigs_total) > 0) else ""
+        minifigs_text = f" · 🧍‍♂️ {int(minifigs_total)} minifigs" if int(minifigs_total) > 0 else ""
+        set_num = row.get("set_number","")
 
         html += f"""
         <div class="set-card">
             {image_html}
             <div class="set-info">
-                <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
+                <div class="set-title">{set_num} · {row.get("name","")}</div>
                 <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
                 <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
+                <a class="edit-link" href="#" onclick="window.parent.postMessage({{type:'editarSet', origen:'{origen}', setNumber:'{set_num}'}}, '*');return false;">✏️ Editar</a>
             </div>
         </div>"""
     html += """
     <script>
-      let h=0;
-      function resize(extra=120){
-        const n=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-        if(Math.abs(n-h)>10){window.parent.postMessage({streamlitResize:n+extra},"*");h=n;}
-      }
-      new ResizeObserver(()=>resize()).observe(document.body);
-      window.addEventListener("load",()=>{setTimeout(()=>resize(150),300);
+      window.addEventListener("load",()=>{
         document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
       });
     </script></body></html>
     """
     components.html(html, height=1000, scrolling=False)
 
+def cargar_set_desde_lambda(set_number):
+    """Consulta datos reales del set desde Lambda."""
+    try:
+        resp = requests.post(LAMBDA_ADMIN, json={"accion": "consulta", "set_number": int(set_number)}, timeout=40)
+        if resp.status_code == 200:
+            data = resp.json()
+            body = data.get("body")
+            if isinstance(body, str):
+                data = json.loads(body)
+            return data.get("lego", {})
+        else:
+            st.error(f"Error {resp.status_code}: {resp.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error al obtener set: {str(e)}")
+        return None
+
+# ------------------------------------------------------------
+# ESCUCHAR EVENTOS DE EDICIÓN DESDE HTML
+# ------------------------------------------------------------
+msg = st.experimental_get_query_params()
+components.html("""
+<script>
+window.addEventListener("message", (event)=>{
+  if(event.data && event.data.type==="editarSet"){
+    const params = new URLSearchParams(window.location.search);
+    params.set("editar", event.data.setNumber);
+    window.parent.location.search = params.toString();
+  }
+});
+</script>
+""", height=0, scrolling=False)
+
+query_params = st.experimental_get_query_params()
+if "editar" in query_params:
+    st.session_state["editar_set"] = query_params["editar"][0]
+
 # ------------------------------------------------------------
 # PESTAÑAS
 # ------------------------------------------------------------
-tab1, tab2, tab3 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 Buscar", "⚙️ Administrar", "📦 Listado", "🛠️ Editar"])
 
 # ============================================================
-# TAB 1: BUSCAR EN CATÁLOGO
+# TAB 1: BUSCAR
 # ============================================================
 with tab1:
     pregunta = st.text_input("Pregunta", placeholder="Ejemplo: ¿Qué sets de Star Wars tengo?")
@@ -107,9 +141,7 @@ with tab1:
             with st.spinner("Buscando..."):
                 try:
                     resp = requests.post(LAMBDA_SEARCH, json={"pregunta": pregunta}, timeout=40)
-                    if resp.status_code != 200:
-                        st.error(f"Error {resp.status_code}: {resp.text}")
-                    else:
+                    if resp.status_code == 200:
                         data = resp.json()
                         body = data.get("body")
                         if isinstance(body, str):
@@ -117,29 +149,24 @@ with tab1:
                         respuesta = re.sub(r"!\[.*?\]\(\s*\)", "", data.get("respuesta", ""))
                         st.markdown(f"#### 💬 {respuesta}")
                         resultados = data.get("resultados", [])
-
-                        if not resultados:
-                            st.info("No se encontraron resultados.")
-                        else:
+                        if resultados:
                             df = pd.DataFrame(resultados)
                             df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
                             df["image_full"] = df.get("image_url", "")
-                            # contar minifigs si existe
-                            if "minifigs_names" in df.columns:
-                                df["minifigs_total"] = df["minifigs_names"].apply(
-                                    lambda x: len(x) if isinstance(x, list) else 0
-                                )
-                            else:
-                                df["minifigs_total"] = 0
-                            render_listado_html(df)
+                            df["minifigs_total"] = df.get("minifigs_names", []).apply(lambda x: len(x) if isinstance(x, list) else 0)
+                            render_listado_html(df, "busqueda")
+                        else:
+                            st.info("No se encontraron resultados.")
+                    else:
+                        st.error(f"Error {resp.status_code}: {resp.text}")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
 # ============================================================
-# TAB 2: ADMINISTRAR
+# TAB 2: ADMINISTRAR (Solo Alta y Baja)
 # ============================================================
 with tab2:
-    accion = st.radio("Acción", ["Alta", "Baja", "Actualizacion"], horizontal=True)
+    accion = st.radio("Acción", ["Alta", "Baja"], horizontal=True)
     st.divider()
     set_number = st.text_input("Número de set")
     name = st.text_input("Nombre")
@@ -149,12 +176,10 @@ with tab2:
     storage = st.selectbox("Ubicación", ["Cobalto", "San Geronimo"])
     storage_box = st.number_input("Caja", min_value=0, step=1)
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
-
     imagen_archivo = None
-    if accion in ["Alta", "Actualizacion"]:
-        imagen_archivo = st.file_uploader("📸 Imagen del set", type=["jpg", "jpeg", "webp"])
-
-    lego_web_url = st.text_input("URL página LEGO (opcional)", placeholder="https://www.lego.com/...")
+    if accion == "Alta":
+        imagen_archivo = st.file_uploader("📸 Imagen del set", type=["jpg","jpeg","webp"])
+    lego_web_url = st.text_input("URL página LEGO (opcional)")
     manuals = st.text_area("Manuales (uno por línea)")
     minifigs = st.text_area("Minifigs (número: nombre por línea)")
     tags = st.text_area("Tags (separados por comas)", placeholder="nave, star wars, exclusivo")
@@ -164,136 +189,120 @@ with tab2:
             set_number_int = int(set_number)
             manual_list = [m.strip() for m in manuals.splitlines() if m.strip()]
             minifigs_names, minifigs_numbers = [], []
-            minifigsTotal = 0
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
-                if len(p) == 2:
+                if len(p)==2:
                     minifigs_numbers.append(p[0])
                     minifigs_names.append(p[1])
-                minifigsTotal += 1
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
             payload = {"accion": accion.lower()}
-            imagen_base64 = convertir_a_base64(imagen_archivo) if imagen_archivo else None
-
             if accion == "Alta":
-                payload["lego"] = {
+                lego = {
                     "set_number": set_number_int, "name": name, "theme": theme,
                     "year": year, "pieces": pieces, "storage": storage,
                     "storage_box": storage_box, "condition": condition,
                     "lego_web_url": lego_web_url, "manuals": manual_list,
-                    "minifigs_names": minifigs_names, "minifigs_numbers": minifigs_numbers, "minifigs_total": minifigsTotal,
+                    "minifigs_names": minifigs_names, "minifigs_numbers": minifigs_numbers,
                     "tags": tags_list, "created_at": datetime.utcnow().isoformat(),
                 }
-                if imagen_base64: payload["lego"]["imagen_base64"] = imagen_base64
-            elif accion == "Baja":
-                payload["set_number"] = set_number_int
+                if imagen_archivo:
+                    lego["imagen_base64"] = convertir_a_base64(imagen_archivo)
+                payload["lego"] = lego
             else:
-                campos = {
-                    "name": name, "theme": theme, "year": year, "pieces": pieces,
-                    "storage": storage, "storage_box": storage_box,
-                    "condition": condition, "lego_web_url": lego_web_url,
-                    "manuals": manual_list, "minifigs_names": minifigs_names,
-                    "minifigs_numbers": minifigs_numbers, "tags": tags_list,
-                    "modified_at": datetime.utcnow().isoformat(),
-                }
-                if imagen_base64: campos["imagen_base64"] = imagen_base64
-                campos_filtrados = {k: v for k, v in campos.items() if v not in ["", None, [], 0]}
-                payload["set_number"], payload["campos"] = set_number_int, campos_filtrados
+                payload["set_number"] = set_number_int
 
-            with st.spinner("Guardando cambios..."):
+            with st.spinner("Ejecutando operación..."):
                 r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
-                try:
-                    respuesta = r.json()
-                except:
-                    st.error(f"Error {r.status_code}: {r.text}")
-                    st.stop()
-
                 if r.status_code == 200:
-                    mensaje = respuesta.get("mensaje", "Operación completada.")
-                    image_url = respuesta.get("image_url")
-                    st.success(mensaje)
-                    if image_url:
-                        st.image(image_url, caption="Imagen subida a Firebase", width=250)
+                    st.success(r.json().get("mensaje", "Operación completada."))
                 else:
-                    st.error(f"Error {r.status_code}: {respuesta.get('error', r.text)}")
+                    st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:
-            st.error(f"Ocurrió un error: {str(e)}")
+            st.error(f"Error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (con ordenamiento persistente)
+# TAB 3: LISTADO
 # ============================================================
 with tab3:
-    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"], key="tema_listado")
-
-    # Botón para obtener/actualizar los resultados desde la Lambda
+    tema = st.selectbox("Selecciona el tema:", ["Star Wars","Technic","Ideas","F1"])
     if st.button("Mostrar sets", use_container_width=True):
-        try:
-            with st.spinner(f"Obteniendo sets de {tema}..."):
-                r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
-                if r.status_code == 200:
-                    data = r.json()
-                    body = data.get("body")
-                    if isinstance(body, str):
-                        data = json.loads(body)
-                    resultados = data.get("resultados", [])
-                    st.session_state["listado_resultados"] = resultados
-                    st.session_state["listado_tema"] = tema
-                    if not resultados:
-                        st.info(f"No hay sets registrados en el tema {tema}.")
+        with st.spinner("Cargando..."):
+            r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
+            if r.status_code == 200:
+                data = r.json()
+                body = data.get("body")
+                if isinstance(body,str):
+                    data = json.loads(body)
+                resultados = data.get("resultados", [])
+                if resultados:
+                    df = pd.DataFrame(resultados)
+                    df["thumb"] = df.get("thumb_url", df.get("image_url",""))
+                    df["image_full"] = df.get("image_url","")
+                    df["minifigs_total"] = df.get("minifigs_names", []).apply(lambda x: len(x) if isinstance(x, list) else 0)
+                    render_listado_html(df, "listado")
                 else:
-                    st.error(f"Error {r.status_code}: {r.text}")
-        except Exception as e:
-            st.error(f"Ocurrió un error: {str(e)}")
+                    st.info("No hay sets registrados en este tema.")
+            else:
+                st.error(f"Error {r.status_code}: {r.text}")
 
-    # Si ya hay resultados en sesión, mostramos controles de orden y la lista
-    resultados_guardados = st.session_state.get("listado_resultados", [])
-    tema_guardado = st.session_state.get("listado_tema")
-
-    if resultados_guardados:
-        df = pd.DataFrame(resultados_guardados)
-
-        # Campos visuales
-        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
-        df["image_full"] = df.get("image_url", "")
-
-        # Minifigs robusto
-        if "minifigs_total" in df.columns:
-            pass
-        elif "minifigs_names" in df.columns:
-            df["minifigs_total"] = df["minifigs_names"].apply(lambda x: len(x) if isinstance(x, list) else 0)
-        else:
-            df["minifigs_total"] = 0
-
-        # Convertir a numérico para orden correcto
-        for col in ["set_number", "year", "pieces", "storage_box", "minifigs_total"]:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-
-        st.markdown(f"**{len(df)} sets encontrados en {tema_guardado or tema}**")
-
-        # Controles de orden
-        columnas_orden = {
-            "Número de set": "set_number",
-            "Nombre": "name",
-            "Año": "year",
-            "Piezas": "pieces",
-            "Minifigs": "minifigs_total",
-            "Caja": "storage_box"
-        }
-        col1, col2 = st.columns([2,1])
-        with col1:
-            orden_seleccion = st.selectbox("Ordenar por:", list(columnas_orden.keys()), index=0, key="orden_sel")
-        with col2:
-            ascendente = st.checkbox("Ascendente", value=True, key="orden_asc")
-
-        columna_orden = columnas_orden[orden_seleccion]
-        if columna_orden in df.columns:
-            df = df.sort_values(by=columna_orden, ascending=ascendente, na_position="last")
-
-        # Render
-        render_listado_html(df)
+# ============================================================
+# TAB 4: EDITAR
+# ============================================================
+with tab4:
+    if not st.session_state["editar_set"]:
+        st.info("Selecciona un set desde la búsqueda o el listado para editarlo.")
     else:
-        st.info("Elige un tema y presiona **Mostrar sets** para ver la lista.")
+        set_num = st.session_state["editar_set"]
+        st.subheader(f"🛠️ Editar set {set_num}")
+        lego_data = cargar_set_desde_lambda(set_num)
+        if lego_data:
+            with st.form("form_editar"):
+                name = st.text_input("Nombre", lego_data.get("name",""))
+                theme = st.text_input("Tema", lego_data.get("theme",""))
+                year = st.number_input("Año", value=int(lego_data.get("year",2020)))
+                pieces = st.number_input("Piezas", value=int(lego_data.get("pieces",0)))
+                storage = st.text_input("Ubicación", lego_data.get("storage",""))
+                storage_box = st.number_input("Caja", value=int(lego_data.get("storage_box",0)))
+                condition = st.text_input("Condición", lego_data.get("condition",""))
+                lego_web_url = st.text_input("URL LEGO", lego_data.get("lego_web_url",""))
+                manuals = st.text_area("Manuales (uno por línea)", "\n".join(lego_data.get("manuals",[])))
+                minifigs = st.text_area("Minifigs (número: nombre)", "\n".join([f"{n}:{m}" for n,m in zip(lego_data.get("minifigs_numbers",[]), lego_data.get("minifigs_names",[]))]))
+                tags = st.text_input("Tags (coma)", ", ".join(lego_data.get("tags",[])))
+                imagen_archivo = st.file_uploader("📸 Nueva imagen (opcional)", type=["jpg","jpeg","webp"])
+                enviar = st.form_submit_button("💾 Guardar cambios")
+                if enviar:
+                    try:
+                        payload = {
+                            "accion": "actualizacion",
+                            "set_number": int(set_num),
+                            "campos": {
+                                "name": name, "theme": theme, "year": year, "pieces": pieces,
+                                "storage": storage, "storage_box": storage_box,
+                                "condition": condition, "lego_web_url": lego_web_url,
+                                "manuals": [m.strip() for m in manuals.splitlines() if m.strip()],
+                                "tags": [t.strip() for t in tags.split(",") if t.strip()],
+                                "modified_at": datetime.utcnow().isoformat(),
+                            }
+                        }
+                        if minifigs:
+                            nums, names = [], []
+                            for line in minifigs.splitlines():
+                                p = [x.strip() for x in line.split(":")]
+                                if len(p)==2:
+                                    nums.append(p[0]); names.append(p[1])
+                            payload["campos"]["minifigs_numbers"]=nums
+                            payload["campos"]["minifigs_names"]=names
+                        if imagen_archivo:
+                            payload["campos"]["imagen_base64"] = convertir_a_base64(imagen_archivo)
+                        with st.spinner("Actualizando..."):
+                            r = requests.post(LAMBDA_ADMIN, json=payload, timeout=40)
+                            if r.status_code==200:
+                                st.success("✅ Cambios guardados correctamente.")
+                                st.session_state["editar_set"]=None
+                            else:
+                                st.error(f"Error {r.status_code}: {r.text}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
 
 # ------------------------------------------------------------
 # PIE

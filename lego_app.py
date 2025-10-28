@@ -19,11 +19,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# ------------------------------------------------------------
+# CONFIGURACIÓN DE ENDPOINTS
+# ------------------------------------------------------------
 LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/legoSearch"
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"
 
-# Estado global
+# ------------------------------------------------------------
+# ESTADOS GLOBALES
+# ------------------------------------------------------------
 if "editar_set" not in st.session_state:
     st.session_state["editar_set"] = None
 if "listado_resultados" not in st.session_state:
@@ -105,9 +110,8 @@ def cargar_set_desde_lambda(set_number):
         return None
 
 # ------------------------------------------------------------
-# ESCUCHAR EVENTOS DE EDICIÓN DESDE HTML
+# ESCUCHAR EVENTOS DE EDICIÓN DESDE HTML (NUEVA API)
 # ------------------------------------------------------------
-msg = st.experimental_get_query_params()
 components.html("""
 <script>
 window.addEventListener("message", (event)=>{
@@ -120,7 +124,7 @@ window.addEventListener("message", (event)=>{
 </script>
 """, height=0, scrolling=False)
 
-query_params = st.experimental_get_query_params()
+query_params = st.query_params  # ✅ Nueva API sin advertencias
 if "editar" in query_params:
     st.session_state["editar_set"] = query_params["editar"][0]
 
@@ -178,7 +182,7 @@ with tab2:
     condition = st.selectbox("Condición", ["In Lego Box", "Open"])
     imagen_archivo = None
     if accion == "Alta":
-        imagen_archivo = st.file_uploader("📸 Imagen del set", type=["jpg","jpeg","webp"])
+        imagen_archivo = st.file_uploader("📸 Imagen del set", type=["jpg", "jpeg", "webp"])
     lego_web_url = st.text_input("URL página LEGO (opcional)")
     manuals = st.text_area("Manuales (uno por línea)")
     minifigs = st.text_area("Minifigs (número: nombre por línea)")
@@ -191,7 +195,7 @@ with tab2:
             minifigs_names, minifigs_numbers = [], []
             for line in minifigs.splitlines():
                 p = [x.strip() for x in line.split(":")]
-                if len(p)==2:
+                if len(p) == 2:
                     minifigs_numbers.append(p[0])
                     minifigs_names.append(p[1])
             tags_list = [t.strip() for t in tags.split(",") if t.strip()]
@@ -224,20 +228,20 @@ with tab2:
 # TAB 3: LISTADO
 # ============================================================
 with tab3:
-    tema = st.selectbox("Selecciona el tema:", ["Star Wars","Technic","Ideas","F1"])
+    tema = st.selectbox("Selecciona el tema:", ["Star Wars", "Technic", "Ideas", "F1"])
     if st.button("Mostrar sets", use_container_width=True):
         with st.spinner("Cargando..."):
             r = requests.post(LAMBDA_SEARCH_FILTER, json={"tema": tema}, timeout=40)
             if r.status_code == 200:
                 data = r.json()
                 body = data.get("body")
-                if isinstance(body,str):
+                if isinstance(body, str):
                     data = json.loads(body)
                 resultados = data.get("resultados", [])
                 if resultados:
                     df = pd.DataFrame(resultados)
-                    df["thumb"] = df.get("thumb_url", df.get("image_url",""))
-                    df["image_full"] = df.get("image_url","")
+                    df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+                    df["image_full"] = df.get("image_url", "")
                     df["minifigs_total"] = df.get("minifigs_names", []).apply(lambda x: len(x) if isinstance(x, list) else 0)
                     render_listado_html(df, "listado")
                 else:

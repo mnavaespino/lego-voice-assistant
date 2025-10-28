@@ -23,6 +23,11 @@ LAMBDA_SEARCH = "https://ztpcx6dks9.execute-api.us-east-1.amazonaws.com/default/
 LAMBDA_ADMIN = "https://nn41og73w2.execute-api.us-east-1.amazonaws.com/default/legoAdmin"
 LAMBDA_SEARCH_FILTER = "https://pzj4u8wwxc.execute-api.us-east-1.amazonaws.com/default/legoSearchFilter"
 
+# Estado inicial para listado
+if "listado_resultados" not in st.session_state:
+    st.session_state["listado_resultados"] = []
+if "listado_tema" not in st.session_state:
+    st.session_state["listado_tema"] = None
 
 # ------------------------------------------------------------
 # FUNCIÓN PARA CONVERTIR IMAGEN A BASE64
@@ -35,6 +40,55 @@ def convertir_a_base64(archivo):
     tipo = archivo.type
     return f"data:{tipo};base64,{b64}"
 
+# ------------------------------------------------------------
+# FUNCIÓN PARA RENDERIZAR LISTA HTML (reutilizable)
+# ------------------------------------------------------------
+def render_listado_html(df):
+    html = """
+    <html><head><style>
+        body { font-family:'Inter',Roboto,sans-serif;color:#333;margin:0;padding:0;background:#fff;}
+        .set-card{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:10px;border:1px solid #eee;margin-bottom:10px;background:#fafafa;opacity:0;transition:opacity .3s ease;}
+        .set-card.visible{opacity:1;}
+        .set-img{width:100px;height:auto;border-radius:6px;object-fit:contain;background:#fff;border:1px solid #ddd;}
+        .set-title{font-weight:600;font-size:15px;color:#222;margin-bottom:3px;}
+        .set-sub{color:#777;font-size:13px;margin-bottom:4px;}
+        .set-detail{font-size:12.5px;color:#555;}
+    </style></head><body>
+    """
+    for _, row in df.iterrows():
+        thumb = row.get("thumb", "")
+        full = row.get("image_full", "")
+        image_html = (
+            f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
+            if thumb or full else
+            '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
+        )
+        minifigs_total = row.get("minifigs_total", 0)
+        minifigs_text = f" · 🧍‍♂️ {int(minifigs_total)} minifigs" if (pd.notna(minifigs_total) and int(minifigs_total) > 0) else ""
+
+        html += f"""
+        <div class="set-card">
+            {image_html}
+            <div class="set-info">
+                <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
+                <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
+                <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
+            </div>
+        </div>"""
+    html += """
+    <script>
+      let h=0;
+      function resize(extra=120){
+        const n=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
+        if(Math.abs(n-h)>10){window.parent.postMessage({streamlitResize:n+extra},"*");h=n;}
+      }
+      new ResizeObserver(()=>resize()).observe(document.body);
+      window.addEventListener("load",()=>{setTimeout(()=>resize(150),300);
+        document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
+      });
+    </script></body></html>
+    """
+    components.html(html, height=1000, scrolling=False)
 
 # ------------------------------------------------------------
 # PESTAÑAS
@@ -70,59 +124,14 @@ with tab1:
                             df = pd.DataFrame(resultados)
                             df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
                             df["image_full"] = df.get("image_url", "")
-
-                            html = """
-                            <html><head><style>
-                                body { font-family:'Inter', Roboto, sans-serif; color:#333; background:#fff; margin:0; padding:0; }
-                                .set-card { display:flex; align-items:center; gap:16px;
-                                    padding:10px 14px; border-radius:10px; border:1px solid #eee;
-                                    margin-bottom:10px; background:#fafafa;
-                                    transition:transform .15s ease, opacity .3s ease; opacity:0; }
-                                .set-card.visible { opacity:1; transform:translateY(0); }
-                                .set-img { width:100px; height:auto; border-radius:6px;
-                                    object-fit:contain; border:1px solid #ddd; background:#fff; }
-                                .set-info { flex-grow:1; }
-                                .set-title { font-weight:600; font-size:15px; color:#222; margin-bottom:3px; }
-                                .set-sub { color:#777; font-size:13px; margin-bottom:4px; }
-                                .set-detail { font-size:12.5px; color:#555; }
-                            </style></head><body>
-                            """
-                            for _, row in df.iterrows():
-                                thumb = row.get("thumb", "")
-                                full = row.get("image_full", "")
-                                image_html = (
-                                    f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
-                                    if thumb or full else
-                                    '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
+                            # contar minifigs si existe
+                            if "minifigs_names" in df.columns:
+                                df["minifigs_total"] = df["minifigs_names"].apply(
+                                    lambda x: len(x) if isinstance(x, list) else 0
                                 )
-
-                                minifigs = row.get("minifigs_names", [])
-                                total_minifigs = len(minifigs) if isinstance(minifigs, list) else 0
-                                minifigs_text = f" · 🧍‍♂️ {total_minifigs} minifigs" if total_minifigs > 0 else ""
-
-                                html += f"""
-                                <div class="set-card">
-                                    {image_html}
-                                    <div class="set-info">
-                                        <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
-                                        <div class="set-sub">{row.get("theme","")} · {row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
-                                        <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
-                                    </div>
-                                </div>"""
-                            html += """
-                            <script>
-                              let h=0;
-                              function resize(extra=120){
-                                const n=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-                                if(Math.abs(n-h)>10){window.parent.postMessage({streamlitResize:n+extra},"*");h=n;}
-                              }
-                              new ResizeObserver(()=>resize()).observe(document.body);
-                              window.addEventListener("load",()=>{setTimeout(()=>resize(150),300);
-                                document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
-                              });
-                            </script></body></html>
-                            """
-                            components.html(html, height=1000, scrolling=False)
+                            else:
+                                df["minifigs_total"] = 0
+                            render_listado_html(df)
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
@@ -211,10 +220,12 @@ with tab2:
             st.error(f"Ocurrió un error: {str(e)}")
 
 # ============================================================
-# TAB 3: LISTADO POR TEMA (con ordenamiento)
+# TAB 3: LISTADO POR TEMA (con ordenamiento persistente)
 # ============================================================
 with tab3:
-    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"])
+    tema = st.selectbox("Selecciona el tema a mostrar:", ["Star Wars", "Technic", "Ideas", "F1"], key="tema_listado")
+
+    # Botón para obtener/actualizar los resultados desde la Lambda
     if st.button("Mostrar sets", use_container_width=True):
         try:
             with st.spinner(f"Obteniendo sets de {tema}..."):
@@ -225,92 +236,64 @@ with tab3:
                     if isinstance(body, str):
                         data = json.loads(body)
                     resultados = data.get("resultados", [])
-
+                    st.session_state["listado_resultados"] = resultados
+                    st.session_state["listado_tema"] = tema
                     if not resultados:
                         st.info(f"No hay sets registrados en el tema {tema}.")
-                    else:
-                        df = pd.DataFrame(resultados)
-                        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
-                        df["image_full"] = df.get("image_url", "")
-                        df["minifigs_total"] = df["minifigs_names"].apply(
-                            lambda x: len(x) if isinstance(x, list) else 0
-                        )
-
-                        # 🔽 Selector de ordenamiento
-                        columnas_orden = {
-                            "Número de set": "set_number",
-                            "Nombre": "name",
-                            "Año": "year",
-                            "Piezas": "pieces",
-                            "Minifigs": "minifigs_total",
-                            "Caja": "storage_box"
-                        }
-                        orden_seleccion = st.selectbox(
-                            "Ordenar por:",
-                            list(columnas_orden.keys()),
-                            index=0
-                        )
-                        ascendente = st.toggle("Orden ascendente", value=True)
-
-                        columna_orden = columnas_orden[orden_seleccion]
-                        df = df.sort_values(by=columna_orden, ascending=ascendente, na_position="last")
-
-                        st.markdown(f"**{len(df)} sets encontrados en {tema}**")
-
-                        html = """
-                        <html><head><style>
-                            body { font-family:'Inter',Roboto,sans-serif;color:#333;margin:0;padding:0;background:#fff;}
-                            .set-card{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:10px;border:1px solid #eee;margin-bottom:10px;background:#fafafa;opacity:0;transition:opacity .3s ease;}
-                            .set-card.visible{opacity:1;}
-                            .set-img{width:100px;height:auto;border-radius:6px;object-fit:contain;background:#fff;border:1px solid #ddd;}
-                            .set-title{font-weight:600;font-size:15px;color:#222;margin-bottom:3px;}
-                            .set-sub{color:#777;font-size:13px;margin-bottom:4px;}
-                            .set-detail{font-size:12.5px;color:#555;}
-                        </style></head><body>
-                        """
-
-                        for _, row in df.iterrows():
-                            thumb = row.get("thumb", "")
-                            full = row.get("image_full", "")
-                            image_html = (
-                                f'<a href="{full}" target="_blank"><img src="{thumb}" class="set-img"></a>'
-                                if thumb or full else
-                                '<div style="width:100px;height:70px;background:#ddd;border-radius:6px;text-align:center;line-height:70px;">—</div>'
-                            )
-
-                            minifigs_text = (
-                                f" · 🧍‍♂️ {row['minifigs_total']} minifigs"
-                                if row["minifigs_total"] > 0 else ""
-                            )
-
-                            html += f"""
-                            <div class="set-card">
-                                {image_html}
-                                <div class="set-info">
-                                    <div class="set-title">{row.get("set_number","")} · {row.get("name","")}</div>
-                                    <div class="set-sub">{row.get("year","")} · 🧩 {row.get("pieces","")} piezas{minifigs_text}</div>
-                                    <div class="set-detail">🎁 {row.get("condition","")} · 🏠 {row.get("storage","")} · 📦 Caja {row.get("storage_box","")}</div>
-                                </div>
-                            </div>"""
-
-                        html += """
-                        <script>
-                          let h=0;
-                          function resize(extra=100){
-                            const n=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-                            if(Math.abs(n-h)>10){window.parent.postMessage({streamlitResize:n+extra},"*");h=n;}
-                          }
-                          new ResizeObserver(()=>resize()).observe(document.body);
-                          window.addEventListener("load",()=>{setTimeout(()=>resize(150),300);
-                            document.querySelectorAll('.set-card').forEach((c,i)=>setTimeout(()=>c.classList.add('visible'),i*60));
-                          });
-                        </script></body></html>
-                        """
-                        components.html(html, height=1000, scrolling=False)
                 else:
                     st.error(f"Error {r.status_code}: {r.text}")
         except Exception as e:
             st.error(f"Ocurrió un error: {str(e)}")
+
+    # Si ya hay resultados en sesión, mostramos controles de orden y la lista
+    resultados_guardados = st.session_state.get("listado_resultados", [])
+    tema_guardado = st.session_state.get("listado_tema")
+
+    if resultados_guardados:
+        df = pd.DataFrame(resultados_guardados)
+
+        # Campos visuales
+        df["thumb"] = df.get("thumb_url", df.get("image_url", ""))
+        df["image_full"] = df.get("image_url", "")
+
+        # Minifigs robusto
+        if "minifigs_total" in df.columns:
+            pass
+        elif "minifigs_names" in df.columns:
+            df["minifigs_total"] = df["minifigs_names"].apply(lambda x: len(x) if isinstance(x, list) else 0)
+        else:
+            df["minifigs_total"] = 0
+
+        # Convertir a numérico para orden correcto
+        for col in ["set_number", "year", "pieces", "storage_box", "minifigs_total"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        st.markdown(f"**{len(df)} sets encontrados en {tema_guardado or tema}**")
+
+        # Controles de orden
+        columnas_orden = {
+            "Número de set": "set_number",
+            "Nombre": "name",
+            "Año": "year",
+            "Piezas": "pieces",
+            "Minifigs": "minifigs_total",
+            "Caja": "storage_box"
+        }
+        col1, col2 = st.columns([2,1])
+        with col1:
+            orden_seleccion = st.selectbox("Ordenar por:", list(columnas_orden.keys()), index=0, key="orden_sel")
+        with col2:
+            ascendente = st.checkbox("Ascendente", value=True, key="orden_asc")
+
+        columna_orden = columnas_orden[orden_seleccion]
+        if columna_orden in df.columns:
+            df = df.sort_values(by=columna_orden, ascending=ascendente, na_position="last")
+
+        # Render
+        render_listado_html(df)
+    else:
+        st.info("Elige un tema y presiona **Mostrar sets** para ver la lista.")
 
 # ------------------------------------------------------------
 # PIE
